@@ -11,3 +11,9 @@ PORT = "8080"
 
 [nixpacks]
 node-version = "18"
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm-8_x"]
+
+[phases.build]
+cmds = ["npm install", "npm run build"]
