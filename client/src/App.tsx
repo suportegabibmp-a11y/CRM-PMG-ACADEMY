@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+// import { Toaster } from 'react-hot-toast'; // Removido para evitar erro de listener
 import { useAuth } from './hooks/useAuth';
 import { Login } from './components/Auth/Login';
 import { SignUp } from './components/Auth/SignUp';
@@ -18,6 +18,7 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        {/* <Toaster position="top-right" /> // Removido para evitar erro de listener */}
       </div>
     );
   }
@@ -27,7 +28,7 @@ function App() {
       <ErrorBoundary>
         <Router>
           <div className="min-h-screen bg-gray-50">
-            <Toaster position="top-right" />
+            {/* <Toaster position="top-right" /> // Removido para evitar erro de listener */}
             <Routes>
               <Route path="/" element={<VendasPage />} />
               <Route 
@@ -75,7 +76,7 @@ function App() {
       <Router>
         <PlanVerification>
           <div className="min-h-screen bg-gray-50">
-            <Toaster position="top-right" />
+            {/* <Toaster position="top-right" /> // Removido para evitar erro de listener */}
             <div className="p-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-4">Dashboard CRM PMG</h1>
               <p className="text-gray-600">Bem-vindo ao sistema! O fluxo de recuperação de senha está funcionando.</p>
