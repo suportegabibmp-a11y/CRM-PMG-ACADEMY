@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  customers     Customer[]
+  deals         Deal[]
+  activities    Activity[]
+  salesReports  SalesReport[]
+
+  @@map("users")
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  phone       String?
+  company     String?
+  position    String?
+  segment     String?
+  status      CustomerStatus @default(LEAD)
+  value       Float?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  creator     User       @relation(fields: [createdBy], references: [id])
+  deals       Deal[]
+  activities  Activity[]
+
+  @@map("customers")
+}
+
+model Deal {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  value       Float
+  stage       DealStage  @default(LEAD)
+  customerId  String
+  assignedTo  String
+  probability Int        @default(0)
+  expectedCloseDate DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relacionamentos
+  customer    Customer   @relation(fields: [customerId], references: [id])
+  assignee    User       @relation(fields: [assignedTo], references: [id])
+  activities  Activity[]
+
+  @@map("deals")
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  title       String
+  description String?
+  customerId  String
+  dealId      String?
+  userId      String
+  completed   Boolean      @default(false)
+  scheduledAt DateTime
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relacionamentos
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  deal        Deal?        @relation(fields: [dealId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+
+  @@map("activities")
+}
+
+model SalesReport {
+  id            String   @id @default(cuid())
+  userId        String
+  period        String   // "2024-01", "2024-02", etc.
+  totalDeals    Int
+  totalValue    Float
+  convertedDeals Int
+  conversionRate Float
+  avgDealValue  Float
+  createdAt     DateTime @default(now())
+
+  // Relacionamentos
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@map("sales_reports")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum CustomerStatus {
+  LEAD
+  PROSPECT
+  ACTIVE
+  INACTIVE
+  LOST
+}
+
+enum DealStage {
+  LEAD
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  TASK
+  NOTE
+}

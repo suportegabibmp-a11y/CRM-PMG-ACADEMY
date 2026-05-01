@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM PMG - Sistema de Gestão Completo | R$ 39,90/mês</title>
+    <meta name="description" content="Transforme sua gestão com o CRM PMG. Sistema completo, personalizável e profissional por apenas R$ 39,90 por mês.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --secondary: #6b7280;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+        }
+        
+        .gradient-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+        
+        .gradient-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .gradient-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .gradient-price {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .hover-scale {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .hover-scale:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .animate-pulse-slow {
+            animation: pulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .text-shadow {
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+        
+        .price-card {
+            transition: all 0.3s ease;
+        }
+        
+        .price-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+        }
+        
+        .testimonial-card {
+            transition: all 0.3s ease;
+        }
+        
+        .testimonial-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="fixed top-0 w-full bg-white shadow-md z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between py-4">
+                <div class="flex items-center space-x-3">
+                    <div class="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <i data-lucide="settings" class="h-6 w-6 text-white"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">CRM PMG</h1>
+                </div>
+                <nav class="hidden md:flex items-center space-x-8">
+                    <a href="#features" class="text-gray-600 hover:text-blue-600 transition-colors">Recursos</a>
+                    <a href="#pricing" class="text-gray-600 hover:text-blue-600 transition-colors">Preços</a>
+                    <a href="#testimonials" class="text-gray-600 hover:text-blue-600 transition-colors">Depoimentos</a>
+                    <a href="#faq" class="text-gray-600 hover:text-blue-600 transition-colors">FAQ</a>
+                </nav>
+                <a href="https://pay.cakto.com.br/re967su" target="_blank" class="btn-primary text-white px-6 py-2 rounded-lg font-semibold inline-block">
+                    Começar Agora
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="gradient-hero text-white pt-32 pb-20">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="space-y-8">
+                    <div class="animate-float">
+                        <h1 class="text-5xl md:text-6xl font-bold text-shadow leading-tight">
+                            Transforme Sua Gestão com o<br>
+                            <span class="text-yellow-300">CRM PMG</span>
+                        </h1>
+                    </div>
+                    <p class="text-xl text-blue-100 leading-relaxed">
+                        Sistema completo de gestão de clientes, vendas e atividades. 
+                        Totalmente personalizável, com dashboard inteligente e integração total.
+                        Tudo por apenas <span class="text-yellow-300 font-bold">R$ 39,90/mês</span>.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="https://pay.cakto.com.br/re967su" target="_blank" class="btn-success text-white px-8 py-4 rounded-lg font-bold text-lg hover-scale inline-block text-center">
+                            <i data-lucide="credit-card" class="h-5 w-5 inline mr-2"></i>
+                            Assinar por R$ 39,90/mês
+                        </a>
+                        <button onclick="scrollToDemo()" class="bg-white/20 backdrop-blur text-white px-8 py-4 rounded-lg font-bold text-lg border border-white/30 hover:bg-white/30 transition-all">
+                            <i data-lucide="play" class="h-5 w-5 inline mr-2"></i>
+                            Ver Demonstração
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-8">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-400"></i>
+                            <span class="text-blue-100">Sem taxa de setup</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-400"></i>
+                            <span class="text-blue-100">Cancelamento a qualquer momento</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative">
+                    <div class="animate-float">
+                        <div class="glass-effect rounded-2xl p-8 shadow-2xl">
+                            <img src="https://images.unsplash.com/photo-1556656793-08538906a9f8?w=600&h=400&fit=crop" 
+                                 alt="CRM Dashboard" 
+                                 class="rounded-lg shadow-lg w-full">
+                        </div>
+                    </div>
+                    <div class="absolute -top-4 -right-4 bg-yellow-400 text-gray-900 px-4 py-2 rounded-full font-bold animate-pulse-slow">
+                        🎯 MELHOR PREÇO
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust Indicators -->
+    <section class="py-12 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-900">Confiado por empresas de todos os tamanhos</h3>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-blue-600">500+</div>
+                    <div class="text-gray-600">Empresas Ativas</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-green-600">50K+</div>
+                    <div class="text-gray-600">Clientes Gerenciados</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-purple-600">99.9%</div>
+                    <div class="text-gray-600">Uptime</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-orange-600">24/7</div>
+                    <div class="text-gray-600">Suporte</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">
+                    Recursos Que Transformam Seu Negócio
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Tudo que você precisa para gerenciar clientes, vendas e atividades em um único lugar
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="feature-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="h-16 w-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="users" class="h-8 w-8 text-blue-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Gestão de Clientes</h3>
+                    <p class="text-gray-600 mb-6">
+                        Cadastre, organize e gerencie todos seus clientes com informações completas e histórico de interações.
+                    </p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Cadastro completo
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Histórico de interações
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Segmentação avançada
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="h-16 w-16 bg-green-100 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="handshake" class="h-8 w-8 text-green-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Pipeline de Vendas</h3>
+                    <p class="text-gray-600 mb-6">
+                        Visualize e gerencie todo o processo de vendas com arrastar e soltar entre estágios.
+                    </p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Kanban visual
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Probabilidade de venda
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Follow-up automático
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="h-16 w-16 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="calendar" class="h-8 w-8 text-purple-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Gestão de Atividades</h3>
+                    <p class="text-gray-600 mb-6">
+                        Organize tarefas, reuniões e acompanhamentos com calendário integrado e notificações.
+                    </p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Calendário integrado
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Notificações automáticas
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Relatórios de produtividade
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="h-16 w-16 bg-orange-100 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="bar-chart" class="h-8 w-8 text-orange-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Dashboard Inteligente</h3>
+                    <p class="text-gray-600 mb-6">
+                        Visualize métricas em tempo real e tome decisões baseadas em dados concretos.
+                    </p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            KPIs em tempo real
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Gráficos interativos
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Relatórios customizáveis
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="feature-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="h-16 w-16 bg-red-100 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="settings" class="h-8 w-8 text-red-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Personalização Total</h3>
+                    <p class="text-gray-600 mb-6">
+                        Adapte o sistema às suas necessidades com campos customizados, layouts e temas.
+                    </p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Campos customizados
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Layouts personalizáveis
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Temas e cores
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="h-16 w-16 bg-indigo-100 rounded-xl flex items-center justify-center mb-6">
+                        <i data-lucide="smartphone" class="h-8 w-8 text-indigo-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Acesso Mobile</h3>
+                    <p class="text-gray-600 mb-6">
+                        Acesse seu CRM de qualquer lugar com interface responsiva e otimizada para mobile.
+                    </p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Design responsivo
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            App mobile-friendly
+                        </li>
+                        <li class="flex items-center">
+                            <i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i>
+                            Sincronização automática
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">
+                    Planos Simples, Resultados Extraordinários
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Escolha o plano perfeito para seu negócio. Todos os recursos, sem complicações.
+                </p>
+            </div>
+
+            <div class="max-w-4xl mx-auto">
+                <!-- Popular Plan -->
+                <div class="price-card bg-gradient-to-br from-blue-50 to-purple-50 rounded-3xl p-8 border-2 border-blue-200 relative">
+                    <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                        <div class="bg-orange-500 text-white px-6 py-2 rounded-full font-bold text-sm">
+                            🔥 MAIS POPULAR
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mb-8">
+                        <h3 class="text-3xl font-bold text-gray-900 mb-2">CRM PMG Premium</h3>
+                        <div class="mb-4">
+                            <span class="text-6xl font-bold text-gray-900">R$ 39,90</span>
+                            <span class="text-xl text-gray-600">/mês</span>
+                        </div>
+                        <p class="text-gray-600">Tudo que você precisa para crescer</p>
+                    </div>
+
+                    <div class="space-y-4 mb-8">
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Gestão completa de clientes</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Pipeline de vendas visual</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Gestão de atividades e tarefas</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Dashboard com métricas em tempo real</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Personalização total de campos e layouts</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Relatórios avançados</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Acesso mobile responsivo</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Suporte 24/7 por email</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Backup automático diário</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-3"></i>
+                            <span class="text-gray-700">Integração com webhooks</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <a href="https://pay.cakto.com.br/re967su" target="_blank" class="w-full btn-success text-white px-8 py-4 rounded-lg font-bold text-lg hover-scale inline-block text-center">
+                            <i data-lucide="credit-card" class="h-5 w-5 inline mr-2"></i>
+                            Assinar Agora - R$ 39,90/mês
+                        </a>
+                        <div class="text-center text-sm text-gray-600">
+                            <i data-lucide="shield" class="h-4 w-4 inline mr-1"></i>
+                            Pagamento seguro via Cakto
+                        </div>
+                        <div class="text-center text-sm text-gray-600">
+                            <i data-lucide="x-circle" class="h-4 w-4 inline mr-1"></i>
+                            Cancelamento a qualquer momento
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section id="testimonials" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">
+                    O Que Nossos Clientes Dizem
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Empresas que transformaram sua gestão com o CRM PMG
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Testimonial 1 -->
+                <div class="testimonial-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="flex items-center mb-4">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60&h=60&fit=crop&crop=face" 
+                             alt="Cliente" 
+                             class="w-12 h-12 rounded-full mr-4">
+                        <div>
+                            <h4 class="font-bold text-gray-900">João Silva</h4>
+                            <p class="text-sm text-gray-600">CEO, TechSolutions</p>
+                        </div>
+                    </div>
+                    <div class="flex mb-4">
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                    </div>
+                    <p class="text-gray-600">
+                        "O CRM PMG revolucionou nossa gestão. O sistema é intuitivo, completo e o preço é imbatível. 
+                        Nossas vendas aumentaram 40% em 3 meses!"
+                    </p>
+                </div>
+
+                <!-- Testimonial 2 -->
+                <div class="testimonial-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="flex items-center mb-4">
+                        <img src="https://images.unsplash.com/photo-1494790108755-2616b332c1ca?w=60&h=60&fit=crop&crop=face" 
+                             alt="Cliente" 
+                             class="w-12 h-12 rounded-full mr-4">
+                        <div>
+                            <h4 class="font-bold text-gray-900">Maria Santos</h4>
+                            <p class="text-sm text-gray-600">Diretora, GlobalCorp</p>
+                        </div>
+                    </div>
+                    <div class="flex mb-4">
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                    </div>
+                    <p class="text-gray-600">
+                        "A personalização do CRM PMG é fantástica. Conseguimos adaptar exatamente às nossas necessidades. 
+                        O suporte é excelente e a plataforma muito estável."
+                    </p>
+                </div>
+
+                <!-- Testimonial 3 -->
+                <div class="testimonial-card bg-white rounded-2xl p-8 shadow-lg">
+                    <div class="flex items-center mb-4">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=60&fit=crop&crop=face" 
+                             alt="Cliente" 
+                             class="w-12 h-12 rounded-full mr-4">
+                        <div>
+                            <h4 class="font-bold text-gray-900">Pedro Costa</h4>
+                            <p class="text-sm text-gray-600">Gerente, StartUp Brasil</p>
+                        </div>
+                    </div>
+                    <div class="flex mb-4">
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                        <i data-lucide="star" class="h-5 w-5 text-yellow-400 fill-current"></i>
+                    </div>
+                    <p class="text-gray-600">
+                        "O melhor investimento que fizemos. Por R$ 39,90/mês temos um CRM enterprise-level. 
+                        O dashboard nos dá visibilidade total do negócio."
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">
+                    Perguntas Frequentes
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Tire suas dúvidas sobre o CRM PMG
+                </p>
+            </div>
+
+            <div class="max-w-3xl mx-auto space-y-4">
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <button onclick="toggleFAQ(1)" class="w-full text-left flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">O que está incluído no plano de R$ 39,90/mês?</h3>
+                        <i data-lucide="chevron-down" class="h-5 w-5 text-gray-600 transform transition-transform" id="faq-icon-1"></i>
+                    </button>
+                    <div class="mt-4 text-gray-600 hidden" id="faq-content-1">
+                        Tudo! Você tem acesso completo a todas as funcionalidades: gestão de clientes, pipeline de vendas, 
+                        atividades, dashboard, personalização, relatórios, suporte 24/7 e muito mais. Sem limites ou recursos adicionais.
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <button onclick="toggleFAQ(2)" class="w-full text-left flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">Posso cancelar a qualquer momento?</h3>
+                        <i data-lucide="chevron-down" class="h-5 w-5 text-gray-600 transform transition-transform" id="faq-icon-2"></i>
+                    </button>
+                    <div class="mt-4 text-gray-600 hidden" id="faq-content-2">
+                        Sim! Não há contrato de fidelidade. Você pode cancelar sua assinatura a qualquer momento 
+                        e seu acesso continuará até o final do período pago.
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <button onclick="toggleFAQ(3)" class="w-full text-left flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">Como funciona o período de teste?</h3>
+                        <i data-lucide="chevron-down" class="h-5 w-5 text-gray-600 transform transition-transform" id="faq-icon-3"></i>
+                    </button>
+                    <div class="mt-4 text-gray-600 hidden" id="faq-content-3">
+                        Oferecemos 7 dias de teste gratuito. Você pode explorar todas as funcionalidades 
+                        sem compromisso. Se não gostar, cancele antes do final do período e não será cobrado.
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <button onclick="toggleFAQ(4)" class="w-full text-left flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">Meus dados estão seguros?</h3>
+                        <i data-lucide="chevron-down" class="h-5 w-5 text-gray-600 transform transition-transform" id="faq-icon-4"></i>
+                    </button>
+                    <div class="mt-4 text-gray-600 hidden" id="faq-content-4">
+                        Sim! Utilizamos criptografia de ponta a ponta, backups diários e seguimos 
+                        as melhores práticas de segurança. Seus dados estão protegidos 24/7.
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <button onclick="toggleFAQ(5)" class="w-full text-left flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">Posso personalizar o sistema?</h3>
+                        <i data-lucide="chevron-down" class="h-5 w-5 text-gray-600 transform transition-transform" id="faq-icon-5"></i>
+                    </button>
+                    <div class="mt-4 text-gray-600 hidden" id="faq-content-5">
+                        Sim! O CRM PMG é 100% personalizável. Você pode adicionar campos customizados, 
+                        modificar layouts, criar temas e adaptar o sistema às suas necessidades específicas.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 gradient-primary text-white">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-4xl font-bold mb-4">
+                Pronto para Transformar Sua Gestão?
+            </h2>
+            <p class="text-xl mb-8 text-blue-100">
+                Junte-se a centenas de empresas que já usam o CRM PMG para crescer
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="https://pay.cakto.com.br/re967su" target="_blank" class="bg-white text-blue-600 px-8 py-4 rounded-lg font-bold text-lg hover-scale inline-block text-center">
+                    <i data-lucide="credit-card" class="h-5 w-5 inline mr-2"></i>
+                    Começar Agora - R$ 39,90/mês
+                </a>
+                <button onclick="scrollToDemo()" class="bg-white/20 backdrop-blur text-white px-8 py-4 rounded-lg font-bold text-lg border border-white/30 hover:bg-white/30 transition-all">
+                    <i data-lucide="play" class="h-5 w-5 inline mr-2"></i>
+                    Ver Demonstração
+                </button>
+            </div>
+            <div class="mt-8 text-blue-100">
+                <i data-lucide="shield" class="h-5 w-5 inline mr-2"></i>
+                Garantia de 7 dias ou seu dinheiro de volta
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                            <i data-lucide="settings" class="h-6 w-6 text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">CRM PMG</h3>
+                    </div>
+                    <p class="text-gray-400">
+                        Sistema completo de gestão para empresas que querem crescer.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Produto</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#features" class="hover:text-white transition-colors">Recursos</a></li>
+                        <li><a href="#pricing" class="hover:text-white transition-colors">Preços</a></li>
+                        <li><a href="#testimonials" class="hover:text-white transition-colors">Depoimentos</a></li>
+                        <li><a href="#faq" class="hover:text-white transition-colors">FAQ</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Empresa</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Sobre Nós</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Blog</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Carreiras</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Contato</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Legal</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Termos de Uso</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Privacidade</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Cookies</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">LGPD</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 CRM PMG. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Smooth scrolling
+        function scrollToPricing() {
+            document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function scrollToDemo() {
+            // Simulate demo - could open a modal or redirect to CRM
+            alert('🎯 Demonstração disponível! Acesse: http://localhost:3000 para testar o CRM PMG');
+        }
+
+        function scrollToSection(sectionId) {
+            document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // FAQ toggle
+        function toggleFAQ(id) {
+            const content = document.getElementById(`faq-content-${id}`);
+            const icon = document.getElementById(`faq-icon-${id}`);
+            
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+
+        // Start subscription
+        function startSubscription() {
+            // Simulate subscription process
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Assinar CRM PMG</h3>
+                    <p class="text-gray-600 mb-6">
+                        Você está a um passo de transformar sua gestão! 
+                        Plano Premium por apenas R$ 39,90/mês.
+                    </p>
+                    
+                    <div class="space-y-4 mb-6">
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold">CRM PMG Premium</span>
+                                <span class="text-2xl font-bold text-blue-600">R$ 39,90</span>
+                            </div>
+                            <span class="text-sm text-gray-600">por mês</span>
+                        </div>
+                        
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i>
+                                <span class="text-sm text-green-700">7 dias de teste gratuito</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-yellow-50 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i data-lucide="credit-card" class="h-5 w-5 text-yellow-500 mr-2"></i>
+                                <span class="text-sm text-yellow-700">Pagamento seguro via Cakto</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <button onclick="processPayment()" class="w-full btn-success text-white px-6 py-3 rounded-lg font-bold">
+                            <i data-lucide="credit-card" class="h-5 w-5 inline mr-2"></i>
+                            Prosseguir para Pagamento
+                        </button>
+                        <button onclick="closeModal()" class="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold hover:bg-gray-300 transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            const modal = document.querySelector('.fixed.inset-0');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        function processPayment() {
+            // Simulate payment processing
+            const modal = document.querySelector('.fixed.inset-0 .bg-white');
+            modal.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="check" class="h-8 w-8 text-green-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Pagamento Processado!</h3>
+                    <p class="text-gray-600 mb-6">
+                        Sua assinatura do CRM PMG foi ativada com sucesso. 
+                        Você já pode acessar todos os recursos.
+                    </p>
+                    <div class="bg-blue-50 rounded-lg p-4 mb-6">
+                        <p class="text-sm text-blue-700 mb-2">Seus dados de acesso:</p>
+                        <p class="font-mono text-sm">Email: seu@email.com</p>
+                        <p class="font-mono text-sm">Senha: (enviada por email)</p>
+                    </div>
+                    <button onclick="accessCRM()" class="btn-primary text-white px-6 py-3 rounded-lg font-bold">
+                        <i data-lucide="log-in" class="h-5 w-5 inline mr-2"></i>
+                        Acessar CRM PMG
+                    </button>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function accessCRM() {
+            window.open('http://localhost:3000', '_blank');
+            closeModal();
+        }
+
+        // Smooth scroll for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Header scroll effect
+        window.addEventListener('scroll', function() {
+            const header = document.querySelector('header');
+            if (window.scrollY > 50) {
+                header.classList.add('shadow-lg');
+            } else {
+                header.classList.remove('shadow-lg');
+            }
+        });
+    </script>
+</body>
+</html>

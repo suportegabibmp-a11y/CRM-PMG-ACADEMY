@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "crm-pmg-premium",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}

@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM PMG - Sistema Personalizável</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --secondary: #6b7280;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+        }
+        
+        .shadow-soft {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        
+        .shadow-medium {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        .gradient-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+        
+        .gradient-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .gradient-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+        
+        .gradient-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .hover-scale {
+            transition: transform 0.2s ease;
+        }
+        
+        .hover-scale:hover {
+            transform: scale(1.02);
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Page -->
+    <div id="loginPage" class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full space-y-8">
+            <div>
+                <div class="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
+                    <i data-lucide="briefcase" class="h-6 w-6 text-blue-600"></i>
+                </div>
+                <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                    CRM PMG
+                </h2>
+                <p class="mt-2 text-center text-sm text-gray-600">
+                    Sistema Personalizável de Gestão
+                </p>
+            </div>
+            <form class="mt-8 space-y-6" id="loginForm">
+                <div class="space-y-4">
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input id="email" name="email" type="email" required
+                            class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="seu@email.com">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Senha</label>
+                        <input id="password" name="password" type="password" required
+                            class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit"
+                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white gradient-primary hover-scale focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                            <i data-lucide="lock" class="h-5 w-5 text-blue-500 group-hover:text-blue-400"></i>
+                        </span>
+                        Entrar
+                    </button>
+                </div>
+
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">
+                        Credenciais de teste:<br>
+                        <strong>admin@crmpmg.com</strong> / <strong>Admin@2024!</strong>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboardPage" class="hidden">
+        <!-- Sidebar -->
+        <div id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg z-30 transform transition-transform duration-300">
+            <div class="p-4 border-b">
+                <div class="flex items-center space-x-3">
+                    <div class="h-10 w-10 flex items-center justify-center rounded-full bg-blue-100">
+                        <i data-lucide="briefcase" class="h-5 w-5 text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-gray-900">CRM PMG</h1>
+                        <p class="text-xs text-gray-500">Sistema Personalizável</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="p-4">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="#" data-page="dashboard" class="nav-item flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 hover:text-blue-600 transition-colors">
+                            <i data-lucide="layout" class="h-5 w-5"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-page="customers" class="nav-item flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 hover:text-blue-600 transition-colors">
+                            <i data-lucide="users" class="h-5 w-5"></i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-page="deals" class="nav-item flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 hover:text-blue-600 transition-colors">
+                            <i data-lucide="handshake" class="h-5 w-5"></i>
+                            <span>Negócios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-page="activities" class="nav-item flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 hover:text-blue-600 transition-colors">
+                            <i data-lucide="calendar" class="h-5 w-5"></i>
+                            <span>Atividades</span>
+                        </a>
+                    </li>
+                    <li class="pt-4 border-t">
+                        <a href="#" data-page="customization" class="nav-item flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 hover:text-blue-600 transition-colors">
+                            <i data-lucide="settings" class="h-5 w-5"></i>
+                            <span>Personalização</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t">
+                <div class="flex items-center space-x-3">
+                    <div class="h-8 w-8 flex items-center justify-center rounded-full bg-gray-200">
+                        <i data-lucide="user" class="h-4 w-4 text-gray-600"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-900" id="userName">Usuário</p>
+                        <p class="text-xs text-gray-500" id="userEmail">email@exemplo.com</p>
+                    </div>
+                    <button id="logoutBtn" class="p-2 text-gray-400 hover:text-gray-600">
+                        <i data-lucide="log-out" class="h-4 w-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="ml-64">
+            <!-- Header -->
+            <header class="sticky top-0 z-20 bg-white border-b">
+                <div class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900" id="pageTitle">Dashboard</h2>
+                            <p class="text-sm text-gray-600" id="pageSubtitle">Visão geral do sistema</p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <button class="p-2 text-gray-400 hover:text-gray-600">
+                                <i data-lucide="search" class="h-5 w-5"></i>
+                            </button>
+                            <button class="p-2 text-gray-400 hover:text-gray-600">
+                                <i data-lucide="bell" class="h-5 w-5"></i>
+                            </button>
+                            <button id="mobileMenuBtn" class="p-2 text-gray-400 hover:text-gray-600 md:hidden">
+                                <i data-lucide="menu" class="h-5 w-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="p-6">
+                <!-- Dashboard Content -->
+                <div id="dashboardContent" class="page-content">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white rounded-xl p-6 shadow-soft hover-scale">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">Total de Clientes</p>
+                                    <p class="text-2xl font-bold text-gray-900" id="totalCustomers">0</p>
+                                </div>
+                                <div class="h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
+                                    <i data-lucide="users" class="h-6 w-6 text-blue-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl p-6 shadow-soft hover-scale">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">Negócios Ativos</p>
+                                    <p class="text-2xl font-bold text-gray-900" id="totalDeals">0</p>
+                                </div>
+                                <div class="h-12 w-12 flex items-center justify-center rounded-full bg-green-100">
+                                    <i data-lucide="handshake" class="h-6 w-6 text-green-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl p-6 shadow-soft hover-scale">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">Valor Total</p>
+                                    <p class="text-2xl font-bold text-gray-900" id="totalValue">R$ 0</p>
+                                </div>
+                                <div class="h-12 w-12 flex items-center justify-center rounded-full bg-yellow-100">
+                                    <i data-lucide="dollar-sign" class="h-6 w-6 text-yellow-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl p-6 shadow-soft hover-scale">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">Taxa de Conversão</p>
+                                    <p class="text-2xl font-bold text-gray-900" id="conversionRate">0%</p>
+                                </div>
+                                <div class="h-12 w-12 flex items-center justify-center rounded-full bg-purple-100">
+                                    <i data-lucide="trending-up" class="h-6 w-6 text-purple-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts and Tables -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Recent Deals -->
+                        <div class="bg-white rounded-xl p-6 shadow-soft">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Negócios Recentes</h3>
+                            <div class="space-y-3" id="recentDeals">
+                                <!-- Deals will be loaded here -->
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Activities -->
+                        <div class="bg-white rounded-xl p-6 shadow-soft">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Atividades Recentes</h3>
+                            <div class="space-y-3" id="recentActivities">
+                                <!-- Activities will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customers Content -->
+                <div id="customersContent" class="page-content hidden">
+                    <div class="bg-white rounded-xl shadow-soft">
+                        <div class="p-6 border-b">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">Lista de Clientes</h3>
+                                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i data-lucide="plus" class="h-4 w-4 inline mr-2"></i>
+                                    Novo Cliente
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200" id="customersTable">
+                                    <!-- Customers will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deals Content -->
+                <div id="dealsContent" class="page-content hidden">
+                    <div class="bg-white rounded-xl shadow-soft">
+                        <div class="p-6 border-b">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">Pipeline de Negócios</h3>
+                                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i data-lucide="plus" class="h-4 w-4 inline mr-2"></i>
+                                    Novo Negócio
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="pipelineStages">
+                                <!-- Pipeline stages will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activities Content -->
+                <div id="activitiesContent" class="page-content hidden">
+                    <div class="bg-white rounded-xl shadow-soft">
+                        <div class="p-6 border-b">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">Atividades</h3>
+                                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i data-lucide="plus" class="h-4 w-4 inline mr-2"></i>
+                                    Nova Atividade
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-3" id="activitiesList">
+                                <!-- Activities will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customization Content -->
+                <div id="customizationContent" class="page-content hidden">
+                    <!-- Customization Tabs -->
+                    <div class="mb-6">
+                        <div class="flex bg-gray-100 rounded-lg p-1">
+                            <button class="customization-tab flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors bg-white text-gray-900 shadow-soft" data-tab="overview">
+                                <i data-lucide="grid" class="h-4 w-4 inline mr-2"></i>
+                                Visão Geral
+                            </button>
+                            <button class="customization-tab flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900" data-tab="fields">
+                                <i data-lucide="edit" class="h-4 w-4 inline mr-2"></i>
+                                Campos
+                            </button>
+                            <button class="customization-tab flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900" data-tab="layout">
+                                <i data-lucide="layout" class="h-4 w-4 inline mr-2"></i>
+                                Layout
+                            </button>
+                            <button class="customization-tab flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900" data-tab="modules">
+                                <i data-lucide="layers" class="h-4 w-4 inline mr-2"></i>
+                                Módulos
+                            </button>
+                            <button class="customization-tab flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900" data-tab="themes">
+                                <i data-lucide="palette" class="h-4 w-4 inline mr-2"></i>
+                                Temas
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Overview Tab -->
+                    <div id="overviewTab" class="customization-tab-content">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div class="bg-white rounded-xl p-6 shadow-soft hover-scale">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
+                                        <i data-lucide="edit" class="h-6 w-6 text-blue-600"></i>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-2xl font-bold text-gray-900" id="customFieldsCount">4</p>
+                                        <p class="text-sm text-gray-600">campos</p>
+                                    </div>
+                                </div>
+                                <h3 class="font-semibold text-gray-900">Campos Customizados</h3>
+                            </div>
+                            
+                            <div class="bg-white rounded-xl p-6 shadow-soft hover-scale">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="h-12 w-12 flex items-center justify-center rounded-full bg-green-100">
+                                        <i data-lucide="layout" class="h-6 w-6 text-green-600"></i>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-2xl font-bold text-gray-900" id="customLayoutsCount">3</p>
+                                        <p class="text-sm text-gray-600">layouts</p>
+                                    </div>
+                                </div>
+                                <h3 class="font-semibold text-gray-900">Layouts Personalizados</h3>
+                            </div>
+                            
+                            <div class="bg-white rounded-xl p-6 shadow-soft hover-scale">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="h-12 w-12 flex items-center justify-center rounded-full bg-yellow-100">
+                                        <i data-lucide="layers" class="h-6 w-6 text-yellow-600"></i>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-2xl font-bold text-gray-900" id="activeModulesCount">4</p>
+                                        <p class="text-sm text-gray-600">ativos</p>
+                                    </div>
+                                </div>
+                                <h3 class="font-semibold text-gray-900">Módulos Ativos</h3>
+                            </div>
+                            
+                            <div class="bg-white rounded-xl p-6 shadow-soft hover-scale">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="h-12 w-12 flex items-center justify-center rounded-full bg-purple-100">
+                                        <i data-lucide="palette" class="h-6 w-6 text-purple-600"></i>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-2xl font-bold text-gray-900" id="customThemesCount">3</p>
+                                        <p class="text-sm text-gray-600">temas</p>
+                                    </div>
+                                </div>
+                                <h3 class="font-semibold text-gray-900">Temas Customizados</h3>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="bg-white rounded-xl p-6 shadow-soft mb-6">
+                            <h2 class="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <button class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left" onclick="showCustomizationTab('fields')">
+                                    <i data-lucide="plus" class="h-6 w-6 text-blue-600 mb-2"></i>
+                                    <h3 class="font-medium text-gray-900 mb-1">Novo Campo</h3>
+                                    <p class="text-sm text-gray-600">Adicionar campo customizado</p>
+                                </button>
+                                <button class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left" onclick="showCustomizationTab('layout')">
+                                    <i data-lucide="layout" class="h-6 w-6 text-green-600 mb-2"></i>
+                                    <h3 class="font-medium text-gray-900 mb-1">Editar Layout</h3>
+                                    <p class="text-sm text-gray-600">Personalizar layout do dashboard</p>
+                                </button>
+                                <button class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left" onclick="showCustomizationTab('themes')">
+                                    <i data-lucide="palette" class="h-6 w-6 text-purple-600 mb-2"></i>
+                                    <h3 class="font-medium text-gray-900 mb-1">Criar Tema</h3>
+                                    <p class="text-sm text-gray-600">Design tema personalizado</p>
+                                </button>
+                                <button class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left" onclick="showCustomizationTab('modules')">
+                                    <i data-lucide="settings" class="h-6 w-6 text-yellow-600 mb-2"></i>
+                                    <h3 class="font-medium text-gray-900 mb-1">Configurar Módulos</h3>
+                                    <p class="text-sm text-gray-600">Habilitar ou desabilitar recursos</p>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Recent Changes -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-white rounded-xl p-6 shadow-soft">
+                                <h2 class="text-lg font-semibold text-gray-900 mb-4">Alterações Recentes</h2>
+                                <div class="space-y-2">
+                                    <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                                        <div class="p-2 bg-blue-100 rounded-lg">
+                                            <i data-lucide="edit" class="h-4 w-4 text-blue-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-900">Campo "WhatsApp" criado</p>
+                                            <div class="flex items-center space-x-2 text-xs text-gray-600">
+                                                <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700">Criado</span>
+                                                <span>•</span>
+                                                <span>2 horas atrás</span>
+                                                <span>•</span>
+                                                <span>João Silva</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                                        <div class="p-2 bg-green-100 rounded-lg">
+                                            <i data-lucide="layout" class="h-4 w-4 text-green-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-900">Layout do Dashboard modificado</p>
+                                            <div class="flex items-center space-x-2 text-xs text-gray-600">
+                                                <span class="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Modificado</span>
+                                                <span>•</span>
+                                                <span>5 horas atrás</span>
+                                                <span>•</span>
+                                                <span>Maria Santos</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                                        <div class="p-2 bg-purple-100 rounded-lg">
+                                            <i data-lucide="palette" class="h-4 w-4 text-purple-600"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-900">Tema "Blue Corporate" ativado</p>
+                                            <div class="flex items-center space-x-2 text-xs text-gray-600">
+                                                <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Ativado</span>
+                                                <span>•</span>
+                                                <span>1 dia atrás</span>
+                                                <span>•</span>
+                                                <span>Carlos Pereira</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-xl p-6 shadow-soft">
+                                <h2 class="text-lg font-semibold text-gray-900 mb-4">Dicas de Personalização</h2>
+                                <div class="space-y-3">
+                                    <div class="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                        <div class="flex items-start space-x-2">
+                                            <i data-lucide="info" class="h-4 w-4 text-blue-600 mt-0.5"></i>
+                                            <div>
+                                                <p class="text-sm font-medium text-blue-900">Campos Customizados</p>
+                                                <p class="text-xs text-blue-700">Crie campos específicos para seu negócio como CPF, CNPJ, ou informações customizadas de clientes.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 bg-green-50 rounded-lg border border-green-200">
+                                        <div class="flex items-start space-x-2">
+                                            <i data-lucide="zap" class="h-4 w-4 text-green-600 mt-0.5"></i>
+                                            <div>
+                                                <p class="text-sm font-medium text-green-900">Layout Inteligente</p>
+                                                <p class="text-xs text-green-700">Arraste e solte componentes para criar o layout perfeito para sua equipe.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                                        <div class="flex items-start space-x-2">
+                                            <i data-lucide="palette" class="h-4 w-4 text-purple-600 mt-0.5"></i>
+                                            <div>
+                                                <p class="text-sm font-medium text-purple-900">Temas Personalizados</p>
+                                                <p class="text-xs text-purple-700">Crie temas que reflitam a identidade visual da sua marca.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fields Tab -->
+                    <div id="fieldsTab" class="customization-tab-content hidden">
+                        <div class="bg-white rounded-xl shadow-soft">
+                            <div class="p-6 border-b">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-gray-900">Campos Customizados</h3>
+                                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" onclick="addNewField()">
+                                        <i data-lucide="plus" class="h-4 w-4 inline mr-2"></i>
+                                        Novo Campo
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <div class="space-y-4" id="customFieldsList">
+                                    <!-- Custom fields will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layout Tab -->
+                    <div id="layoutTab" class="customization-tab-content hidden">
+                        <div class="bg-white rounded-xl shadow-soft">
+                            <div class="p-6 border-b">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-gray-900">Editor de Layout</h3>
+                                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                        <i data-lucide="save" class="h-4 w-4 inline mr-2"></i>
+                                        Salvar Layout
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                                    <div class="lg:col-span-1">
+                                        <h4 class="font-medium text-gray-900 mb-4">Componentes</h4>
+                                        <div class="space-y-2">
+                                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100">
+                                                <i data-lucide="bar-chart" class="h-4 w-4 inline mr-2"></i>
+                                                Gráfico
+                                            </div>
+                                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100">
+                                                <i data-lucide="users" class="h-4 w-4 inline mr-2"></i>
+                                                Lista de Clientes
+                                            </div>
+                                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100">
+                                                <i data-lucide="handshake" class="h-4 w-4 inline mr-2"></i>
+                                                Negócios Recentes
+                                            </div>
+                                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100">
+                                                <i data-lucide="calendar" class="h-4 w-4 inline mr-2"></i>
+                                                Calendário
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="lg:col-span-3">
+                                        <h4 class="font-medium text-gray-900 mb-4">Preview do Layout</h4>
+                                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-96">
+                                            <div class="text-center text-gray-500">
+                                                <i data-lucide="layout" class="h-12 w-12 mx-auto mb-4"></i>
+                                                <p>Arraste componentes aqui para personalizar seu layout</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modules Tab -->
+                    <div id="modulesTab" class="customization-tab-content hidden">
+                        <div class="bg-white rounded-xl shadow-soft">
+                            <div class="p-6 border-b">
+                                <h3 class="text-lg font-semibold text-gray-900">Configuração de Módulos</h3>
+                            </div>
+                            <div class="p-6">
+                                <div class="space-y-4" id="modulesList">
+                                    <!-- Modules will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Themes Tab -->
+                    <div id="themesTab" class="customization-tab-content hidden">
+                        <div class="bg-white rounded-xl shadow-soft">
+                            <div class="p-6 border-b">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-gray-900">Personalização de Temas</h3>
+                                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                        <i data-lucide="plus" class="h-4 w-4 inline mr-2"></i>
+                                        Novo Tema
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="themesList">
+                                    <!-- Themes will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let currentUser = null;
+        let currentPage = 'dashboard';
+        let customizationData = {
+            fields: [],
+            layouts: [],
+            modules: [],
+            themes: []
+        };
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // API functions
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(endpoint, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                return null;
+            }
+        }
+
+        // Authentication
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const result = await apiCall('/api/login', {
+                method: 'POST',
+                body: JSON.stringify({ email, password })
+            });
+            
+            if (result && result.success) {
+                currentUser = result.user;
+                showDashboard();
+                loadDashboardData();
+            } else {
+                alert('Credenciais inválidas. Tente novamente.');
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await apiCall('/api/logout', { method: 'POST' });
+            currentUser = null;
+            showLogin();
+        });
+
+        // Page navigation
+        function showLogin() {
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('dashboardPage').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('dashboardPage').classList.remove('hidden');
+            
+            // Update user info
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userEmail').textContent = currentUser.email;
+            }
+        }
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = item.dataset.page;
+                navigateToPage(page);
+            });
+        });
+
+        function navigateToPage(page) {
+            currentPage = page;
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('bg-blue-50', 'text-blue-600');
+                item.classList.add('text-gray-700');
+            });
+            
+            document.querySelector(`[data-page="${page}"]`).classList.add('bg-blue-50', 'text-blue-600');
+            document.querySelector(`[data-page="${page}"]`).classList.remove('text-gray-700');
+            
+            // Update page content
+            document.querySelectorAll('.page-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            document.getElementById(`${page}Content`).classList.remove('hidden');
+            
+            // Update page title
+            const titles = {
+                dashboard: { title: 'Dashboard', subtitle: 'Visão geral do sistema' },
+                customers: { title: 'Clientes', subtitle: 'Gestão de clientes e contatos' },
+                deals: { title: 'Negócios', subtitle: 'Pipeline de vendas e oportunidades' },
+                activities: { title: 'Atividades', subtitle: 'Tarefas e acompanhamento' },
+                customization: { title: 'Personalização', subtitle: 'Configure seu CRM do seu jeito' }
+            };
+            
+            if (titles[page]) {
+                document.getElementById('pageTitle').textContent = titles[page].title;
+                document.getElementById('pageSubtitle').textContent = titles[page].subtitle;
+            }
+            
+            // Load page-specific data
+            if (page === 'customers') loadCustomers();
+            if (page === 'deals') loadDeals();
+            if (page === 'activities') loadActivities();
+            if (page === 'customization') loadCustomization();
+        }
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            const metrics = await apiCall('/api/metrics');
+            if (metrics) {
+                document.getElementById('totalCustomers').textContent = metrics.totalCustomers;
+                document.getElementById('totalDeals').textContent = metrics.totalDeals;
+                document.getElementById('totalValue').textContent = `R$ ${metrics.totalValue.toLocaleString('pt-BR')}`;
+                document.getElementById('conversionRate').textContent = `${metrics.conversionRate}%`;
+            }
+            
+            const deals = await apiCall('/api/deals');
+            if (deals) {
+                const recentDeals = deals.slice(0, 5);
+                const recentDealsHtml = recentDeals.map(deal => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <p class="font-medium text-gray-900">${deal.title}</p>
+                            <p class="text-sm text-gray-600">${deal.customer}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-medium text-gray-900">R$ ${deal.value.toLocaleString('pt-BR')}</p>
+                            <span class="text-xs px-2 py-1 rounded-full ${getStageColor(deal.stage)}">${getStageText(deal.stage)}</span>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('recentDeals').innerHTML = recentDealsHtml;
+            }
+            
+            const activities = await apiCall('/api/activities');
+            if (activities) {
+                const recentActivities = activities.slice(0, 5);
+                const recentActivitiesHtml = recentActivities.map(activity => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i data-lucide="${getActivityIcon(activity.type)}" class="h-4 w-4 text-blue-600"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-900">${activity.title}</p>
+                                <p class="text-sm text-gray-600">${activity.customer}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-600">${activity.date}</p>
+                            <span class="text-xs px-2 py-1 rounded-full ${activity.completed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
+                                ${activity.completed ? 'Concluída' : 'Pendente'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('recentActivities').innerHTML = recentActivitiesHtml;
+            }
+            
+            // Re-initialize icons
+            lucide.createIcons();
+        }
+
+        // Load customers
+        async function loadCustomers() {
+            const customers = await apiCall('/api/customers');
+            if (customers) {
+                const customersHtml = customers.map(customer => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="h-10 w-10 flex-shrink-0">
+                                    <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                        <i data-lucide="user" class="h-5 w-5 text-gray-500"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">${customer.name}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${customer.email}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${customer.phone}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(customer.status)}">
+                                ${getStatusText(customer.status)}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            R$ ${customer.value.toLocaleString('pt-BR')}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button class="text-blue-600 hover:text-blue-900 mr-3">Editar</button>
+                            <button class="text-red-600 hover:text-red-900">Excluir</button>
+                        </td>
+                    </tr>
+                `).join('');
+                document.getElementById('customersTable').innerHTML = customersHtml;
+                lucide.createIcons();
+            }
+        }
+
+        // Load deals
+        async function loadDeals() {
+            const deals = await apiCall('/api/deals');
+            if (deals) {
+                const stages = ['contact', 'proposal', 'negotiation', 'won', 'lost'];
+                const pipelineHtml = stages.map(stage => {
+                    const stageDeals = deals.filter(deal => deal.stage === stage);
+                    return `
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-medium text-gray-900 mb-3">${getStageText(stage)}</h4>
+                            <div class="space-y-2">
+                                ${stageDeals.map(deal => `
+                                    <div class="bg-white p-3 rounded-lg border border-gray-200">
+                                        <p class="font-medium text-gray-900">${deal.title}</p>
+                                        <p class="text-sm text-gray-600">${deal.customer}</p>
+                                        <p class="text-sm font-medium text-gray-900">R$ ${deal.value.toLocaleString('pt-BR')}</p>
+                                        <div class="mt-2">
+                                            <div class="flex items-center justify-between text-xs text-gray-600">
+                                                <span>Probabilidade</span>
+                                                <span>${deal.probability}%</span>
+                                            </div>
+                                            <div class="mt-1 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-blue-600 h-2 rounded-full" style="width: ${deal.probability}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                document.getElementById('pipelineStages').innerHTML = pipelineHtml;
+            }
+        }
+
+        // Load activities
+        async function loadActivities() {
+            const activities = await apiCall('/api/activities');
+            if (activities) {
+                const activitiesHtml = activities.map(activity => `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-4">
+                            <div class="p-3 bg-blue-100 rounded-lg">
+                                <i data-lucide="${getActivityIcon(activity.type)}" class="h-6 w-6 text-blue-600"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-900">${activity.title}</p>
+                                <p class="text-sm text-gray-600">${activity.customer} • ${activity.date}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-3 py-1 text-xs rounded-full ${activity.completed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
+                                ${activity.completed ? 'Concluída' : 'Pendente'}
+                            </span>
+                            <button class="p-2 text-gray-400 hover:text-gray-600">
+                                <i data-lucide="more-horizontal" class="h-4 w-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('activitiesList').innerHTML = activitiesHtml;
+                lucide.createIcons();
+            }
+        }
+
+        // Load customization data
+        async function loadCustomization() {
+            // Load custom fields
+            const fields = await apiCall('/api/customization/fields');
+            if (fields) {
+                customizationData.fields = fields;
+                const fieldsHtml = fields.map(field => `
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <h4 class="font-medium text-gray-900">${field.name}</h4>
+                                <p class="text-sm text-gray-600">Tipo: ${field.type} • Módulo: ${field.module}</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button class="p-2 text-gray-400 hover:text-gray-600">
+                                    <i data-lucide="edit" class="h-4 w-4"></i>
+                                </button>
+                                <button class="p-2 text-gray-400 hover:text-red-600" onclick="deleteField(${field.id})">
+                                    <i data-lucide="trash" class="h-4 w-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">${field.category}</span>
+                            ${field.required ? '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">Obrigatório</span>' : ''}
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('customFieldsList').innerHTML = fieldsHtml;
+            }
+
+            // Load modules
+            const modules = await apiCall('/api/customization/modules');
+            if (modules) {
+                customizationData.modules = modules;
+                const modulesHtml = modules.map(module => `
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium text-gray-900">${module.name}</h4>
+                                <p class="text-sm text-gray-600">${module.description}</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">${module.category}</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer" ${module.enabled ? 'checked' : ''} onchange="toggleModule(${module.id}, this.checked)">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <p class="text-xs text-gray-600 mb-2">Recursos:</p>
+                            <div class="flex flex-wrap gap-1">
+                                ${module.features.map(feature => `
+                                    <span class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">${feature}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('modulesList').innerHTML = modulesHtml;
+            }
+
+            // Load themes
+            const themes = await apiCall('/api/customization/themes');
+            if (themes) {
+                customizationData.themes = themes;
+                const themesHtml = themes.map(theme => `
+                    <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors cursor-pointer ${theme.active ? 'border-blue-500' : ''}" onclick="activateTheme(${theme.id})">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h4 class="font-medium text-gray-900">${theme.name}</h4>
+                                <p class="text-sm text-gray-600">${theme.category}</p>
+                            </div>
+                            ${theme.active ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">Ativo</span>' : ''}
+                        </div>
+                        <div class="grid grid-cols-5 gap-2 mb-3">
+                            <div class="h-8 rounded" style="background-color: ${theme.colors.primary}"></div>
+                            <div class="h-8 rounded" style="background-color: ${theme.colors.secondary}"></div>
+                            <div class="h-8 rounded" style="background-color: ${theme.colors.success}"></div>
+                            <div class="h-8 rounded" style="background-color: ${theme.colors.warning}"></div>
+                            <div class="h-8 rounded" style="background-color: ${theme.colors.danger}"></div>
+                        </div>
+                        <button class="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                            ${theme.active ? 'Tema Atual' : 'Ativar Tema'}
+                        </button>
+                    </div>
+                `).join('');
+                document.getElementById('themesList').innerHTML = themesHtml;
+            }
+
+            // Update counts
+            document.getElementById('customFieldsCount').textContent = customizationData.fields.length;
+            document.getElementById('activeModulesCount').textContent = customizationData.modules.filter(m => m.enabled).length;
+            document.getElementById('customThemesCount').textContent = customizationData.themes.length;
+        }
+
+        // Customization tabs
+        document.querySelectorAll('.customization-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                showCustomizationTab(tabName);
+            });
+        });
+
+        function showCustomizationTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.customization-tab').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-gray-900', 'shadow-soft');
+                btn.classList.add('text-gray-600');
+            });
+            
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('bg-white', 'text-gray-900', 'shadow-soft');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.remove('text-gray-600');
+            
+            // Update tab content
+            document.querySelectorAll('.customization-tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            document.getElementById(`${tabName}Tab`).classList.remove('hidden');
+        }
+
+        // Helper functions
+        function getStageColor(stage) {
+            const colors = {
+                contact: 'bg-blue-100 text-blue-700',
+                proposal: 'bg-yellow-100 text-yellow-700',
+                negotiation: 'bg-orange-100 text-orange-700',
+                won: 'bg-green-100 text-green-700',
+                lost: 'bg-red-100 text-red-700'
+            };
+            return colors[stage] || 'bg-gray-100 text-gray-700';
+        }
+
+        function getStageText(stage) {
+            const texts = {
+                contact: 'Contato',
+                proposal: 'Proposta',
+                negotiation: 'Negociação',
+                won: 'Ganho',
+                lost: 'Perdido'
+            };
+            return texts[stage] || stage;
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                active: 'bg-green-100 text-green-700',
+                lead: 'bg-blue-100 text-blue-700',
+                inactive: 'bg-red-100 text-red-700'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-700';
+        }
+
+        function getStatusText(status) {
+            const texts = {
+                active: 'Ativo',
+                lead: 'Lead',
+                inactive: 'Inativo'
+            };
+            return texts[status] || status;
+        }
+
+        function getActivityIcon(type) {
+            const icons = {
+                call: 'phone',
+                email: 'mail',
+                meeting: 'calendar',
+                task: 'check-square'
+            };
+            return icons[type] || 'circle';
+        }
+
+        // Customization functions
+        function addNewField() {
+            const name = prompt('Nome do novo campo:');
+            if (name) {
+                const newField = {
+                    name: name,
+                    type: 'text',
+                    required: false,
+                    module: 'customers',
+                    category: 'custom'
+                };
+                
+                // Add to local state
+                customizationData.fields.push(newField);
+                
+                // Reload fields
+                loadCustomization();
+                
+                alert('Campo adicionado com sucesso!');
+            }
+        }
+
+        function deleteField(fieldId) {
+            if (confirm('Tem certeza que deseja excluir este campo?')) {
+                customizationData.fields = customizationData.fields.filter(f => f.id !== fieldId);
+                loadCustomization();
+                alert('Campo excluído com sucesso!');
+            }
+        }
+
+        function toggleModule(moduleId, enabled) {
+            const module = customizationData.modules.find(m => m.id === moduleId);
+            if (module) {
+                module.enabled = enabled;
+                alert(`Módulo ${module.name} ${enabled ? 'ativado' : 'desativado'} com sucesso!`);
+            }
+        }
+
+        function activateTheme(themeId) {
+            // Deactivate all themes
+            customizationData.themes.forEach(theme => {
+                theme.active = false;
+            });
+            
+            // Activate selected theme
+            const theme = customizationData.themes.find(t => t.id === themeId);
+            if (theme) {
+                theme.active = true;
+                alert(`Tema "${theme.name}" ativado com sucesso!`);
+                loadCustomization();
+            }
+        }
+
+        // Mobile menu toggle
+        document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        // Check authentication on load
+        async function checkAuth() {
+            const auth = await apiCall('/api/auth/check');
+            if (auth && auth.authenticated) {
+                currentUser = auth.user;
+                showDashboard();
+                loadDashboardData();
+            } else {
+                showLogin();
+            }
+        }
+
+        // Initialize
+        checkAuth();
+    </script>
+</body>
+</html>
