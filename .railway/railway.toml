@@ -1,0 +1,10 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "cd server && npm start"
+buildCommand = "npm install && npm run build"
+
+[env]
+NODE_ENV = "production"
+PORT = "8080"
