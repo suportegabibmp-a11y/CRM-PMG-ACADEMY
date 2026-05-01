@@ -39,16 +39,42 @@ export const ResetPasswordPage: React.FC = () => {
     const validateRecoverySession = async () => {
       try {
         console.log('Validando sessão de recuperação...');
+        console.log('URL atual:', window.location.href);
+        console.log('Parâmetros de busca:', Object.fromEntries(searchParams));
         
         // Verificar se há uma sessão de recuperação ativa
         const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('Resultado da sessão:', { session, error });
         
         if (error) {
           console.error('Erro ao verificar sessão:', error);
           setError('Link de recuperação inválido ou expirado');
         } else if (!session) {
-          console.log('Nenhuma sessão encontrada');
-          setError('Link de recuperação inválido ou expirado');
+          console.log('Nenhuma sessão encontrada, tentando verificar hash...');
+          // Tentar verificar se há hash na URL para recuperação
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          
+          console.log('Hash params:', { accessToken: !!accessToken, refreshToken: !!refreshToken });
+          
+          if (accessToken) {
+            // Tentar criar sessão com os tokens da URL
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+            
+            if (sessionError) {
+              console.error('Erro ao criar sessão:', sessionError);
+              setError('Link de recuperação inválido ou expirado');
+            } else {
+              console.log('Sessão criada com sucesso:', sessionData);
+            }
+          } else {
+            setError('Link de recuperação inválido ou expirado');
+          }
         } else {
           console.log('Sessão de recuperação validada com sucesso');
         }

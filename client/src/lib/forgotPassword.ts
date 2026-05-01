@@ -4,8 +4,13 @@ export const handleForgotPassword = async (email: string) => {
   try {
     console.log('Iniciando processo de recuperação de senha para:', email);
     
+    // Usar URL de produção se estiver no Railway, senão usar localhost
+    const baseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3000'
+      : 'https://commercialorganizer.up.railway.app';
+    
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: `${baseUrl}/reset-password`
     });
 
     if (error) {
