@@ -33,13 +33,12 @@ export const ForgotPasswordPage: React.FC = () => {
       
       if (result.success) {
         setIsSuccess(true);
-        toast.success(result.message);
+        // toast.success(result.message); // Comentar para evitar erro de listener
         console.log('Email de recuperação enviado com sucesso');
       }
     } catch (err: any) {
       console.error('Erro ao enviar email de recuperação:', err);
       setError(err.message || 'Ocorreu um erro ao enviar o email de recuperação');
-      toast.error(err.message || 'Erro ao enviar email de recuperação');
     } finally {
       setIsLoading(false);
     }
