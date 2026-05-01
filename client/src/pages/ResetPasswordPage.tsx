@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+// import { toast } from 'react-hot-toast'; // Removido para evitar erro de listener
 import { supabase } from '../lib/supabase';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader, ArrowLeft } from 'lucide-react';
 
@@ -93,18 +93,21 @@ export const ResetPasswordPage: React.FC = () => {
     e.preventDefault();
     
     if (!password || !confirmPassword) {
-      toast.error('Preencha todos os campos');
+      // toast.error('Preencha todos os campos'); // Removido
+      setError('Preencha todos os campos');
       return;
     }
 
     const passwordValidation = validatePassword(password);
     if (passwordValidation) {
-      toast.error(passwordValidation);
+      // toast.error(passwordValidation); // Removido
+      setError(passwordValidation);
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('As senhas não coincidem');
+      // toast.error('As senhas não coincidem'); // Removido
+      setError('As senhas não coincidem');
       return;
     }
 
@@ -122,7 +125,7 @@ export const ResetPasswordPage: React.FC = () => {
       if (error) {
         console.error('Erro ao atualizar senha:', error);
         setError(error.message);
-        // toast.error(error.message); // Comentar para evitar erro de listener
+        // toast.error(error.message); // Removido para evitar erro de listener
       } else {
         console.log('Senha atualizada com sucesso:', data);
         setIsSuccess(true);
@@ -139,7 +142,7 @@ export const ResetPasswordPage: React.FC = () => {
     } catch (err: any) {
       console.error('Erro ao redefinir senha:', err);
       setError('Ocorreu um erro. Tente novamente.');
-      toast.error('Ocorreu um erro. Tente novamente.');
+      // toast.error('Ocorreu um erro. Tente novamente.'); // Removido para evitar erro de listener
     } finally {
       setIsLoading(false);
     }
