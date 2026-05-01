@@ -16,7 +16,24 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", "https://xmvebvicyqneswedgwna.supabase.co"],
+      mediaSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      childSrc: ["'self'"],
+      frameSrc: ["'self'"],
+      workerSrc: ["'self'"],
+      manifestSrc: ["'self'"]
+    }
+  }
+}));
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
