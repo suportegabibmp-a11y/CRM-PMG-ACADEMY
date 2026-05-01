@@ -53,11 +53,14 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Servir arquivos estáticos do frontend em produção
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  const buildPath = path.join(__dirname, '../../client/build');
+  console.log('Servindo arquivos estáticos de:', buildPath);
+  
+  app.use(express.static(buildPath));
   
   // Fallback para SPA - todas as outras rotas servem o index.html
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build/index.html'));
+    res.sendFile(path.join(buildPath, 'index.html'));
   });
 } else {
   // 404 handler para desenvolvimento
