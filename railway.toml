@@ -3,7 +3,11 @@ builder = "NIXPACKS"
 
 [deploy]
 startCommand = "cd server && npm start"
-buildCommand = "cd client && npm install && npm run build && cd ../server && npm install && npm run build"
+buildCommand = "npm install && npm run build"
 
 [env]
 NODE_ENV = "production"
+PORT = "8080"
+
+[nixpacks]
+node-version = "18"

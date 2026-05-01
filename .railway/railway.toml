@@ -8,3 +8,6 @@ buildCommand = "npm install && npm run build"
 [env]
 NODE_ENV = "production"
 PORT = "8080"
+
+[nixpacks]
+node-version = "18"
