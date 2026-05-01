@@ -208,19 +208,66 @@ export const ResetPasswordPage: React.FC = () => {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8 text-center">
           <div className="mx-auto h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Senha Redefinida!
+          <h2 className="mt-6 text-3xl font-extrabold text-white">
+            Senha Redefinida! 🎉
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-lg text-gray-300">
             Sua senha foi atualizada com sucesso.
           </p>
-          <p className="mt-2 text-sm text-gray-600">
-            Você será redirecionado para a página de login em alguns segundos...
+          
+          {/* Pricing Card */}
+          <div className="bg-gradient-to-r from-purple-800 to-indigo-800 rounded-3xl shadow-2xl p-8 border border-purple-700 relative overflow-hidden mt-8">
+            <div className="absolute top-0 right-0 bg-yellow-400 text-purple-900 px-4 py-2 rounded-bl-2xl font-bold text-sm">
+              OFERTA ESPECIAL
+            </div>
+            
+            <div className="text-center mb-6">
+              <div className="text-5xl font-bold text-white mb-2">
+                R$ 39,90
+              </div>
+              <div className="text-gray-300 text-lg">
+                por mês
+              </div>
+            </div>
+            
+            <div className="mb-8">
+              <div className="flex items-center justify-center mb-4">
+                <div className="flex -space-x-2">
+                  {[1,2,3,4,5].map((i) => (
+                    <span key={i} className="text-yellow-400 text-xl">⭐</span>
+                  ))}
+                </div>
+                <span className="ml-3 text-white font-semibold">4.9/5</span>
+              </div>
+              <p className="text-gray-300 text-center">
+                Mais de 1.000 empresas já transformaram suas vendas
+              </p>
+            </div>
+            
+            <a 
+              href="https://pay.cakto.com.br/re967su" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-purple-900 py-4 rounded-xl text-lg font-bold hover:from-yellow-500 hover:to-orange-600 transition-all transform hover:scale-105 shadow-lg"
+            >
+              <div className="flex items-center justify-center">
+                <span className="mr-2">🚀</span>
+                Garantir Meu Plano Agora
+              </div>
+            </a>
+            
+            <p className="text-center text-gray-400 text-sm mt-4">
+              🎯 7 dias de garantia • Cancelamento a qualquer momento
+            </p>
+          </div>
+          
+          <p className="mt-6 text-gray-400 text-sm">
+            Você será redirecionado para o login em alguns segundos ou pode aproveitar a oferta especial acima!
           </p>
         </div>
       </div>
