@@ -1,19 +1,6 @@
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 
 [deploy]
 startCommand = "cd server && npm start"
 buildCommand = "npm install && npm run build"
-
-[env]
-NODE_ENV = "production"
-PORT = "8080"
-
-[nixpacks]
-node-version = "18"
-
-[phases.setup]
-nixPkgs = ["nodejs-18_x", "npm-8_x"]
-
-[phases.build]
-cmds = ["npm install", "npm run build"]
