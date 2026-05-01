@@ -122,11 +122,11 @@ export const ResetPasswordPage: React.FC = () => {
       if (error) {
         console.error('Erro ao atualizar senha:', error);
         setError(error.message);
-        toast.error(error.message);
+        // toast.error(error.message); // Comentar para evitar erro de listener
       } else {
         console.log('Senha atualizada com sucesso:', data);
         setIsSuccess(true);
-        toast.success('Senha redefinida com sucesso!');
+        // toast.success('Senha redefinida com sucesso!'); // Comentar para evitar erro de listener
         
         // Limpar URL parameters
         window.history.replaceState({}, document.title, window.location.pathname);
