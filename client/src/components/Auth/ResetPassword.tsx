@@ -37,30 +37,39 @@ export const ResetPassword: React.FC = () => {
     return '';
   };
 
-  // Validar sessão de recuperação ao carregar componente
+  // Validar token de recuperação ao carregar componente
   useEffect(() => {
-    const validateRecoverySession = async () => {
+    const validateRecoveryToken = async () => {
       try {
-        // Verificar se há uma sessão de recuperação ativa
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Obter token da URL
+        const token = searchParams.get('token');
         
-        if (error || !session) {
+        if (!token) {
+          setError('Token de recuperação não encontrado na URL');
+          return;
+        }
+
+        // Verificar se o token é válido usando o método correto do Supabase
+        const { data, error } = await supabase.auth.verifyOtp({
+          token,
+          type: 'recovery',
+          email: '' // Email não é necessário para recovery tokens, mas campo é obrigatório
+        });
+
+        if (error) {
           setError('Link de recuperação inválido ou expirado');
         } else {
-          // Verificar se é uma sessão de recuperação
-          const { data: { user } } = await supabase.auth.getUser(session.access_token);
-          if (!user) {
-            setError('Sessão inválida');
-          }
+          // Token válido, permitir redefinição
+          console.log('Token validado com sucesso');
         }
       } catch (err) {
-        setError('Erro ao validar sessão de recuperação');
+        setError('Erro ao validar token de recuperação');
       }
 
       setIsValidating(false);
     };
 
-    validateRecoverySession();
+    validateRecoveryToken();
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
