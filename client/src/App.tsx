@@ -4,8 +4,8 @@ import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
 import { Login } from './components/Auth/Login';
 import { SignUp } from './components/Auth/SignUp';
-import { ForgotPassword } from './components/Auth/ForgotPassword';
-import { ResetPassword } from './components/Auth/ResetPassword';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { VendasPage } from './components/Vendas/VendasPage';
 import { PlanVerification } from './components/Plan/PlanVerification';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
@@ -50,7 +50,7 @@ function App() {
                 path="/forgot-password" 
                 element={
                   <ErrorBoundary fallback={<RouteFallback message="Erro ao carregar página de recuperação de senha" />}>
-                    <ForgotPassword />
+                    <ForgotPasswordPage />
                   </ErrorBoundary>
                 } 
               />
@@ -58,7 +58,7 @@ function App() {
                 path="/reset-password" 
                 element={
                   <ErrorBoundary fallback={<RouteFallback message="Erro ao carregar página de redefinição de senha" />}>
-                    <ResetPassword />
+                    <ResetPasswordPage />
                   </ErrorBoundary>
                 } 
               />
