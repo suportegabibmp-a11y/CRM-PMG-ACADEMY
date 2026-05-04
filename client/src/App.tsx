@@ -74,7 +74,10 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <Dashboard />
+        <Routes>
+          <Route path="/vendas" element={<VendasPage />} />
+          <Route path="*" element={<Dashboard />} />
+        </Routes>
       </Router>
     </ErrorBoundary>
   );

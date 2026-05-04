@@ -85,11 +85,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       setUser(null);
+      localStorage.clear();
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      setUser(null);
+    } finally {
       setIsRateLimited(false);
       setRemainingAttempts(5);
       setRateLimitResetTime(0);
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
     }
   };
 
