@@ -285,6 +285,13 @@ export const Dashboard: React.FC = () => {
           <Plus className="w-4 h-4 mr-2" />
           Nova Fatura
         </button>
+        <button
+          onClick={() => window.location.href = '/vendas'}
+          className="flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          <TrendingUp className="w-4 h-4 mr-2" />
+          Página de Vendas
+        </button>
       </div>
 
       {/* Modal de Cliente */}
