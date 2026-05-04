@@ -9,6 +9,7 @@ import customerRoutes from './routes/customers';
 import dealRoutes from './routes/deals';
 import activityRoutes from './routes/activities';
 import metricsRoutes from './routes/metrics';
+import webhookRoutes from './routes/webhook';
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/deals', dealRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/metrics', metricsRoutes);
+app.use('/api/webhook', webhookRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

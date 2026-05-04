@@ -24,6 +24,7 @@ model User {
   deals         Deal[]
   activities    Activity[]
   salesReports  SalesReport[]
+  invoices      Invoice[]
 
   @@map("users")
 }
@@ -46,6 +47,7 @@ model Customer {
   creator     User       @relation(fields: [createdBy], references: [id])
   deals       Deal[]
   activities  Activity[]
+  invoices    Invoice[]
 
   @@map("customers")
 }
@@ -92,6 +94,28 @@ model Activity {
   @@map("activities")
 }
 
+model Invoice {
+  id            String   @id @default(cuid())
+  customerId    String
+  amount        Float
+  dueDate       DateTime
+  status        InvoiceStatus @default(PENDING)
+  description   String?
+  externalId    String?  // ID externo do Cakto
+  paymentMethod String?  // "cakto", "manual", etc.
+  transactionId String?  // ID da transação
+  paidAt        DateTime?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relacionamentos
+  customer      Customer @relation(fields: [customerId], references: [id])
+  creator       User     @relation(fields: [createdBy], references: [id])
+
+  @@map("invoices")
+}
+
 model SalesReport {
   id            String   @id @default(cuid())
   userId        String
@@ -121,6 +145,13 @@ enum CustomerStatus {
   ACTIVE
   INACTIVE
   LOST
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
 }
 
 enum DealStage {
