@@ -114,6 +114,12 @@ CREATE TABLE IF NOT EXISTS cardapio.order_items (
   notes TEXT NOT NULL DEFAULT ''
 );
 
+-- Assinatura do SaaS (Stripe)
+ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT '';
+ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
+
 -- Defesa extra: mesmo que alguém exponha o schema na API do Supabase,
 -- nenhuma linha fica visível sem políticas. O backend conecta como dono das tabelas.
 ALTER TABLE cardapio.users ENABLE ROW LEVEL SECURITY;

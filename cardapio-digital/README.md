@@ -23,6 +23,7 @@ SaaS multi-restaurante: cada estabelecimento (restaurante, hamburgueria, pizzari
 
 **Para você (dono do SaaS)**
 - Teste grátis de 14 dias por conta. Com o teste vencido, o cardápio para de aceitar pedidos
+- **Mensalidade cobrada pelo Stripe** (planos Básico e Pro), com cobrança recorrente automática e bloqueio automático quando a assinatura é cancelada ou fica sem pagamento. Veja a seção "Assinaturas (Stripe)"
 - Aba "Clientes do SaaS" (para e-mails em `SUPERADMIN_EMAILS`): lista de restaurantes, mudança de plano (`trial`, `basic`, `pro`, `suspended`) e extensão do teste
 
 ## Como rodar localmente
@@ -72,10 +73,38 @@ As páginas são servidas como arquivos estáticos, a API roda como Netlify Func
 | `SUPERADMIN_EMAILS` | E-mails (separados por vírgula) com acesso à aba de clientes do SaaS |
 | `MP_WEBHOOK_SECRET` | (Opcional) Assinatura secreta dos webhooks do Mercado Pago, para validar o `x-signature` |
 | `ALLOW_DEMO_PAYMENTS` | `true` libera o pagamento simulado em produção (só para testes) |
+| `STRIPE_SECRET_KEY` | Chave secreta do Stripe (`sk_live_…` ou `sk_test_…`) |
+| `STRIPE_WEBHOOK_SECRET` | Segredo do webhook do Stripe (`whsec_…`) |
+| `STRIPE_PRICE_BASIC` | ID do preço mensal do plano Básico (`price_…`) |
+| `STRIPE_PRICE_PRO` | ID do preço mensal do plano Pro (`price_…`) |
 | `APP_TIMEZONE` | Fuso dos relatórios (padrão `America/Sao_Paulo`) |
 | `PORT`, `DB_PATH` | Só para rodar localmente |
 
-## Pagamentos (Mercado Pago)
+## Assinaturas (Stripe)
+
+Os restaurantes pagam a mensalidade do SaaS para você pelo Stripe. O painel tem a aba **Assinatura**, com os planos e o botão "Gerenciar assinatura", que abre o Portal do Cliente do Stripe (trocar cartão, trocar de plano, ver faturas, cancelar).
+
+| Plano | Inclui |
+|---|---|
+| Teste grátis (14 dias) | Tudo do Pro |
+| Básico | Cardápio, pedidos, pagamento na entrega, QR Codes |
+| Pro | Tudo do Básico + PIX e cartão online + relatórios |
+
+O cardápio para de aceitar pedidos quando o teste acaba sem assinatura, ou quando a assinatura fica `canceled`, `unpaid` ou `incomplete_expired`. Com pagamento atrasado (`past_due`), o acesso continua enquanto o Stripe tenta cobrar de novo, e o painel pede para atualizar o cartão. Planos liberados manualmente pelo superadmin, sem assinatura no Stripe, continuam funcionando.
+
+**Configuração no Stripe** (https://dashboard.stripe.com). Faça primeiro em modo de teste:
+1. **Product catalog → Add product**: crie "Plano Básico" com preço recorrente mensal de R$ 49,00 e "Plano Pro" com R$ 89,00. Copie o ID de cada preço (`price_…`) para `STRIPE_PRICE_BASIC` e `STRIPE_PRICE_PRO`
+2. **Developers → API keys**: copie a Secret key para `STRIPE_SECRET_KEY`
+3. **Developers → Webhooks → Add destination**:
+   - URL: `https://SEU-SITE.netlify.app/api/webhooks/stripe`
+   - Eventos: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `invoice.paid`, `invoice.payment_failed`
+   - Copie o Signing secret (`whsec_…`) para `STRIPE_WEBHOOK_SECRET`
+4. **Settings → Billing → Customer portal**: ative o portal e permita atualizar forma de pagamento, trocar de plano (adicione os dois produtos) e cancelar
+5. Coloque as 4 variáveis na Netlify e faça um novo deploy
+
+Para testar, use o cartão `4242 4242 4242 4242`, qualquer data futura e qualquer CVC.
+
+## Pagamentos dos pedidos (Mercado Pago)
 
 1. O restaurante cria uma aplicação em https://www.mercadopago.com.br/developers/panel/app
 2. Copia o **Access Token de produção** (`APP_USR-…`) e cola no painel, em **Configurações → Pagamentos**
@@ -98,6 +127,7 @@ cardapio-digital/
 │   ├── db.js         # Schema e conexão (Supabase/Postgres ou PGlite)
 │   ├── auth.js       # Senhas (scrypt) e sessões por cookie
 │   ├── payments.js   # Mercado Pago (PIX, Checkout, webhook) + modo demo
+│   ├── billing.js    # Assinatura do SaaS no Stripe (checkout, portal, webhook)
 │   └── seed.js       # Dados de demonstração
 ├── netlify/functions/api.js  # API como Netlify Function
 ├── netlify.toml              # Build, função e rotas na Netlify
@@ -111,7 +141,6 @@ cardapio-digital/
 ```
 
 ## Próximos passos sugeridos
-- Cobrança automática da assinatura do SaaS (ex.: webhook da Cakto/Stripe atualizando o `plan`)
 - Upload de imagens (hoje as fotos são por URL)
 - Recuperação de senha por e-mail
 - Horário de funcionamento automático (abrir e fechar sozinho)

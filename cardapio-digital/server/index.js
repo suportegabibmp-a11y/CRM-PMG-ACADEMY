@@ -4,9 +4,23 @@ const express = require('express');
 const { db } = require('./db');
 const auth = require('./auth');
 const payments = require('./payments');
+const billing = require('./billing');
 
 const app = express();
 app.set('trust proxy', true);
+
+// O webhook do Stripe precisa do corpo cru para validar a assinatura,
+// por isso é registrado antes do express.json().
+app.post('/api/webhooks/stripe', express.raw({ type: '*/*', limit: '1mb' }), async (req, res) => {
+  try {
+    await billing.handleWebhook(req.body, req.headers['stripe-signature']);
+    res.json({ received: true });
+  } catch (err) {
+    console.error('Webhook Stripe:', err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 app.use(express.json({ limit: '200kb' }));
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -78,11 +92,20 @@ function rateLimit(key, max, windowMs) {
 }
 
 function subscriptionActive(r) {
-  return r.plan !== 'trial' || new Date(r.trial_ends_at) > new Date();
+  if (r.plan === 'suspended') return false;
+  if (r.plan === 'trial') return new Date(r.trial_ends_at) > new Date();
+  // Plano liberado manualmente pelo superadmin, sem assinatura no Stripe.
+  if (!r.stripe_subscription_id) return true;
+  return billing.ACTIVE_STATUSES.includes(r.subscription_status);
+}
+
+// Pagamento online e relatórios fazem parte do plano Pro (e do teste grátis).
+function hasProFeatures(r) {
+  return r.plan === 'pro' || r.plan === 'trial';
 }
 
 function paymentOptions(r) {
-  const online = payments.providerFor(r);
+  const online = hasProFeatures(r) ? payments.providerFor(r) : null;
   return {
     pix: Boolean(r.accept_pix && online),
     card_online: Boolean(r.accept_card_online && online),
@@ -92,10 +115,12 @@ function paymentOptions(r) {
 }
 
 function adminRestaurant(r) {
-  const { mp_access_token, order_seq, ...rest } = r;
+  const { mp_access_token, order_seq, stripe_customer_id, stripe_subscription_id, ...rest } = r;
   return {
     ...rest,
     has_mp_token: Boolean(mp_access_token),
+    has_subscription: Boolean(stripe_subscription_id),
+    pro_features: hasProFeatures(r),
     subscription_active: subscriptionActive(r),
     payment_options: paymentOptions(r),
   };
@@ -349,6 +374,7 @@ admin.patch('/orders/:id', async (req, res) => {
 });
 
 admin.get('/stats', async (req, res) => {
+  if (!hasProFeatures(req.restaurant)) throw new HttpError(403, 'Relatórios fazem parte do plano Pro.');
   const rid = req.restaurant.id;
   const valid = `restaurant_id = $1 AND status NOT IN ('canceled', 'awaiting_payment')`;
   const totals = `COUNT(*)::int AS orders, COALESCE(SUM(total_cents), 0)::int AS revenue_cents`;
@@ -374,6 +400,54 @@ admin.get('/stats', async (req, res) => {
   res.json({ today, week, month, top: [...top], daily: [...daily] });
 });
 
+// ---------- assinatura do SaaS (Stripe) ----------
+
+admin.get('/billing', async (req, res) => {
+  const r = req.restaurant;
+  let plans = [];
+  try {
+    plans = await billing.listPlans();
+  } catch (err) {
+    console.error('Stripe (planos):', err.message);
+  }
+  res.json({
+    enabled: billing.enabled() && plans.length > 0,
+    plans,
+    plan: r.plan,
+    trial_ends_at: r.trial_ends_at,
+    subscription_status: r.subscription_status,
+    current_period_end: r.current_period_end,
+    has_subscription: billing.hasLiveSubscription(r),
+    can_manage: Boolean(r.stripe_customer_id),
+    active: subscriptionActive(r),
+  });
+});
+
+admin.post('/billing/checkout', async (req, res) => {
+  if (!billing.enabled()) throw new HttpError(503, 'Assinaturas ainda não estão configuradas.');
+  if (req.restaurant.plan === 'suspended') throw new HttpError(403, 'Conta suspensa. Fale com o suporte.');
+  const plan = req.body.plan === 'pro' ? 'pro' : req.body.plan === 'basic' ? 'basic' : null;
+  if (!plan) throw new HttpError(400, 'Plano inválido.');
+  try {
+    res.json({ url: await billing.createCheckout({ restaurant: req.restaurant, user: req.user, plan, baseUrl: baseUrl(req) }) });
+  } catch (err) {
+    if (err.status) throw new HttpError(err.status, err.message);
+    console.error('Stripe (checkout):', err.message);
+    throw new HttpError(502, 'Não foi possível abrir o pagamento. Tente novamente.');
+  }
+});
+
+admin.post('/billing/portal', async (req, res) => {
+  if (!billing.enabled()) throw new HttpError(503, 'Assinaturas ainda não estão configuradas.');
+  try {
+    res.json({ url: await billing.createPortal({ restaurant: req.restaurant, baseUrl: baseUrl(req) }) });
+  } catch (err) {
+    if (err.status) throw new HttpError(err.status, err.message);
+    console.error('Stripe (portal):', err.message);
+    throw new HttpError(502, 'Não foi possível abrir o portal. Tente novamente.');
+  }
+});
+
 app.use('/api/admin', admin);
 
 // ---------- superadmin (dono do SaaS) ----------
@@ -387,6 +461,7 @@ superadmin.use(auth.requireAuth, (req, res, next) => {
 superadmin.get('/restaurants', async (req, res) => {
   res.json([...await db.query(
     `SELECT r.id, r.name, r.slug, r.plan, r.trial_ends_at, r.created_at, u.email AS owner_email,
+     r.subscription_status, r.current_period_end,
      (SELECT COUNT(*)::int FROM cardapio.orders o WHERE o.restaurant_id = r.id) AS total_orders
      FROM cardapio.restaurants r JOIN cardapio.users u ON u.id = r.owner_id ORDER BY r.created_at DESC`
   )]);

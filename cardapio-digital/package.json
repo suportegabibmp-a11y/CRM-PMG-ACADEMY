@@ -16,7 +16,8 @@
   "dependencies": {
     "express": "^5.2.1",
     "postgres": "^3.4.9",
-    "serverless-http": "^4.0.0"
+    "serverless-http": "^4.0.0",
+    "stripe": "^22.6.2"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8"
