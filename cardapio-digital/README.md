@@ -41,44 +41,33 @@ npm start         # http://localhost:3000
 - Demonstração: `http://localhost:3000/m/burger-house`. Painel: login `demo@cardapio.app` / senha `demo12345`
 - Testes: `npm test`
 
-## Deploy na Netlify + Supabase
+## Como está publicado (Netlify + Supabase)
 
-As páginas são servidas como arquivos estáticos, a API roda como Netlify Function (`netlify/functions/api.js`) e o banco é o Postgres do Supabase. As tabelas são criadas sozinhas no primeiro acesso, no schema `cardapio`, sem mexer em outras tabelas do projeto.
+```
+navegador ──► Netlify (cardapiodigitalpmg.netlify.app)
+               ├─ páginas estáticas (public/)
+               ├─ /api/webhooks/stripe ─► função "stripe" da Netlify (chaves do Stripe)
+               └─ /api/*  ─► Edge Function "api" do Supabase (server/, banco via SUPABASE_DB_URL)
+                               └─ operações do Stripe ─► função "stripe" da Netlify
+```
 
-**1. Supabase**
-- Crie um projeto em https://supabase.com (ou use um existente)
-- Clique em **Connect** → **Transaction pooler** e copie a URI (porta **6543**), trocando `[YOUR-PASSWORD]` pela senha do banco:
-  `postgresql://postgres.xxxx:SENHA@aws-0-sa-east-1.pooler.supabase.com:6543/postgres`
+- **API**: Edge Function `api` no projeto Supabase "PROJETO AULA PMG". O Supabase injeta a conexão com o banco (`SUPABASE_DB_URL`), então **não existe senha de banco para configurar**. As tabelas ficam no schema `cardapio` e são criadas sozinhas.
+- **Stripe**: fica na função `netlify/functions/stripe.js`, porque as chaves estão nas variáveis da Netlify. O servidor pede cada operação entregando um código de uso único (2 minutos), que a função confirma chamando o servidor de volta antes de agir.
+- **Superadmin**: e-mails na tabela `cardapio.settings` (chave `superadmin_emails`) ou na variável `SUPERADMIN_EMAILS`.
 
-**2. Netlify** → *Site configuration*
-- **Build & deploy → Build settings**:
-  - Base directory: `cardapio-digital`
-  - Build command: `npm install` (já vem do `netlify.toml`)
-  - Publish directory: `cardapio-digital/public` (já vem do `netlify.toml`)
-  - Branch: a branch onde está este código
-- **Environment variables**:
-  - `DATABASE_URL` = a URI do passo 1 (obrigatório)
-  - `SUPERADMIN_EMAILS` = seu e-mail, para ver a aba "Clientes do SaaS"
-  - `ALLOW_DEMO_PAYMENTS` = `true` só se quiser testar o PIX/cartão simulado sem Mercado Pago
-- Faça um novo deploy (**Deploys → Trigger deploy → Clear cache and deploy site**)
-
-**3. (Opcional) Loja de demonstração no Supabase**: rode `DATABASE_URL="..." npm run seed` no seu computador.
+**Publicar mudanças no servidor**: a Edge Function carrega `server/index.js` do GitHub fixado num commit (veja `edge/index.ts`). Depois de enviar código novo, publique a função de novo apontando para o novo commit (`supabase functions deploy api --no-verify-jwt`, ou pelo painel). As páginas e a função do Stripe a Netlify publica sozinha a cada push.
 
 ## Variáveis de ambiente
 
-| Variável | Descrição |
-|---|---|
-| `DATABASE_URL` | Conexão Postgres (Supabase, pooler porta 6543). Sem ela, usa o PGlite local |
-| `DATABASE_PASSWORD` | (Opcional) Senha do banco separada. Com ela, a `DATABASE_URL` pode ficar exatamente como o Supabase mostra, com `[YOUR-PASSWORD]` |
-| `PUBLIC_URL` | URL pública do site. Na Netlify é detectada sozinha; defina se usar domínio próprio |
-| `SUPERADMIN_EMAILS` | E-mails (separados por vírgula) com acesso à aba de clientes do SaaS |
-| `MP_WEBHOOK_SECRET` | (Opcional) Assinatura secreta dos webhooks do Mercado Pago, para validar o `x-signature` |
-| `ALLOW_DEMO_PAYMENTS` | `true` libera o pagamento simulado em produção (só para testes) |
-| `STRIPE_SECRET_KEY` | Chave secreta do Stripe (`sk_live_…` ou `sk_test_…`) |
-| `STRIPE_WEBHOOK_SECRET` | Segredo do webhook do Stripe (`whsec_…`) |
-| `STRIPE_PRICE_ID` | ID do preço mensal da assinatura (`price_…`) |
-| `APP_TIMEZONE` | Fuso dos relatórios (padrão `America/Sao_Paulo`) |
-| `PORT`, `DB_PATH` | Só para rodar localmente |
+| Variável | Onde | Descrição |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | Netlify | Chave secreta do Stripe (`sk_live_…` ou `sk_test_…`) |
+| `STRIPE_WEBHOOK_SECRET` | Netlify | Segredo do webhook do Stripe (`whsec_…`) |
+| `STRIPE_PRICE_ID` | Netlify | ID do preço mensal da assinatura (`price_…`) |
+| `SUPERADMIN_EMAILS` | Supabase (opcional) | Alternativa à tabela `cardapio.settings` |
+| `ALLOW_DEMO_PAYMENTS` | Supabase (opcional) | `true` libera o pagamento simulado (só para testes) |
+| `APP_TIMEZONE` | Supabase (opcional) | Fuso dos relatórios (padrão `America/Sao_Paulo`) |
+| `DATABASE_URL`, `PORT`, `DB_PATH` | local | Só para rodar fora do Supabase; sem `DATABASE_URL` usa PGlite |
 
 ## Assinaturas (Stripe)
 
@@ -94,7 +83,7 @@ O cardápio para de aceitar pedidos quando o teste de 14 dias acaba sem assinatu
    - Eventos: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `invoice.paid`, `invoice.payment_failed`
    - Copie o Signing secret (`whsec_…`) para `STRIPE_WEBHOOK_SECRET`
 4. **Settings → Billing → Customer portal**: ative o portal e permita atualizar forma de pagamento e cancelar
-5. Coloque as 3 variáveis (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`) na Netlify e faça um novo deploy
+5. Coloque as 3 variáveis (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`) na Netlify
 
 Para testar, use o cartão `4242 4242 4242 4242`, qualquer data futura e qualquer CVC.
 
@@ -121,10 +110,13 @@ cardapio-digital/
 │   ├── db.js         # Schema e conexão (Supabase/Postgres ou PGlite)
 │   ├── auth.js       # Senhas (scrypt) e sessões por cookie
 │   ├── payments.js   # Mercado Pago (PIX, Checkout, webhook) + modo demo
-│   ├── billing.js    # Assinatura do SaaS no Stripe (checkout, portal, webhook)
+│   ├── billing.js    # Assinatura: pede checkout/portal/status à função do Stripe
+│   ├── config.js     # Endereços públicos (site, função do Stripe)
+│   ├── start.js      # Servidor local (npm start)
 │   └── seed.js       # Dados de demonstração
-├── netlify/functions/api.js  # API como Netlify Function
-├── netlify.toml              # Build, função e rotas na Netlify
+├── edge/                     # Edge Function "api" do Supabase
+├── netlify/functions/stripe.js  # Stripe (checkout, portal, status, webhook)
+├── netlify.toml              # Rotas: /api → Supabase, webhook → Stripe
 ├── public/
 │   ├── index.html    # Landing page + cadastro/login
 │   ├── admin.*       # Painel do restaurante
