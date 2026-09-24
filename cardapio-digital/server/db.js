@@ -162,8 +162,15 @@ function parseDatabaseUrl(raw) {
   const username = userinfo.slice(0, colon);
   let password = userinfo.slice(colon + 1);
   if (/^\[.*\]$/.test(password)) password = password.slice(1, -1);
-  if (/YOUR-PASSWORD/i.test(password)) throw new ConfigError('troque [YOUR-PASSWORD] pela senha real do banco');
-  if (/%[0-9a-f]{2}/i.test(password)) {
+  // A senha pode vir numa variável separada; assim a URL fica como o Supabase mostra.
+  const separate = (process.env.DATABASE_PASSWORD || '').trim();
+  if (separate) {
+    password = separate;
+  } else if (/YOUR-PASSWORD/i.test(password)) {
+    throw new ConfigError('a DATABASE_URL ainda tem [YOUR-PASSWORD]. Crie a variável DATABASE_PASSWORD com a senha do banco (ou troque [YOUR-PASSWORD] pela senha) e faça um novo deploy');
+  }
+  if (!password) throw new ConfigError('a senha do banco está vazia');
+  if (!separate && /%[0-9a-f]{2}/i.test(password)) {
     try { password = decodeURIComponent(password); } catch { /* usa como está */ }
   }
   let hostUrl;

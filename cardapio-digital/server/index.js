@@ -31,10 +31,15 @@ function databaseHint(err, shown) {
   return 'Confira a DATABASE_URL: postgresql://postgres.SEU-PROJETO:SENHA@aws-0-REGIAO.pooler.supabase.com:6543/postgres';
 }
 
+// Muda a cada atualização, para conferir se o deploy novo está no ar.
+const APP_VERSION = '2026-09-24.5';
+
 // Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
 app.get('/api/health', async (req, res) => {
   const checks = {
+    versao: APP_VERSION,
     database_url_configured: Boolean(process.env.DATABASE_URL),
+    database_password_configured: Boolean(process.env.DATABASE_PASSWORD),
     stripe_configured: billing.enabled(),
   };
   if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {

@@ -69,6 +69,7 @@ As páginas são servidas como arquivos estáticos, a API roda como Netlify Func
 | Variável | Descrição |
 |---|---|
 | `DATABASE_URL` | Conexão Postgres (Supabase, pooler porta 6543). Sem ela, usa o PGlite local |
+| `DATABASE_PASSWORD` | (Opcional) Senha do banco separada. Com ela, a `DATABASE_URL` pode ficar exatamente como o Supabase mostra, com `[YOUR-PASSWORD]` |
 | `PUBLIC_URL` | URL pública do site. Na Netlify é detectada sozinha; defina se usar domínio próprio |
 | `SUPERADMIN_EMAILS` | E-mails (separados por vírgula) com acesso à aba de clientes do SaaS |
 | `MP_WEBHOOK_SECRET` | (Opcional) Assinatura secreta dos webhooks do Mercado Pago, para validar o `x-signature` |
