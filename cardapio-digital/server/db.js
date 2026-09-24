@@ -153,6 +153,9 @@ ALTER TABLE cardapio.settings ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS stripe_synced_at TIMESTAMPTZ;
 
+-- Pedido de "esqueci minha senha" aguardando o admin gerar uma senha temporária
+ALTER TABLE cardapio.users ADD COLUMN IF NOT EXISTS password_reset_requested_at TIMESTAMPTZ;
+
 -- Defesa extra: mesmo que alguém exponha o schema na API do Supabase,
 -- nenhuma linha fica visível sem políticas. O backend conecta como dono das tabelas.
 ALTER TABLE cardapio.users ENABLE ROW LEVEL SECURITY;

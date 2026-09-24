@@ -129,21 +129,32 @@
     // Já logado? Mostra o atalho para o painel.
     // Esqueci minha senha: a pessoa fala com o suporte, que gera uma senha
     // temporária no painel; depois ela troca em Configurações.
-    document.getElementById('forgot').addEventListener('click', async (e) => {
+    document.getElementById('forgot').addEventListener('click', (e) => {
       e.preventDefault();
-      const email = document.getElementById('email').value.trim();
-      const support = await api('/api/public/support').catch(() => ({}));
-      const msg = `Olá! Esqueci minha senha do Cardápio Digital. Meu e-mail de acesso é: ${email || '(seu e-mail)'}`;
-      const buttons = [
-        support.whatsapp && `<a class="btn primary block" target="_blank" rel="noopener" href="https://wa.me/${esc(support.whatsapp)}?text=${encodeURIComponent(msg)}">Pedir nova senha pelo WhatsApp</a>`,
-        support.email && `<a class="btn ${support.whatsapp ? '' : 'primary'} block" href="mailto:${esc(support.email)}?subject=${encodeURIComponent('Esqueci minha senha')}&body=${encodeURIComponent(msg)}">Pedir nova senha por e-mail</a>`,
-      ].filter(Boolean);
-      openModal(`<div class="modal-body">
-        <div class="row"><h2 class="spacer">Esqueci minha senha</h2><button class="btn ghost" data-close aria-label="Fechar">✕</button></div>
-        <p class="muted">Fale com o suporte informando o e-mail da sua conta. Você vai receber uma senha temporária para entrar
-          e depois pode criar a sua em <strong>Configurações → Alterar senha</strong>.</p>
-        <div style="display:grid;gap:10px">${buttons.join('') || '<p class="muted">Entre em contato com o suporte do sistema.</p>'}</div>
-      </div>`);
+      const { el } = openModal(`<form class="modal-body" id="forgot-form">
+        <div class="row"><h2 class="spacer">Esqueci minha senha</h2><button type="button" class="btn ghost" data-close aria-label="Fechar">✕</button></div>
+        <p class="muted">Informe o e-mail da sua conta. O suporte vai te enviar uma senha temporária
+          (pelo WhatsApp cadastrado na sua loja ou por e-mail). Depois de entrar, crie a sua em
+          <strong>Configurações → Alterar senha</strong>.</p>
+        <div class="field"><label for="forgot-email">E-mail da conta</label>
+          <input id="forgot-email" type="email" autocomplete="email" required value="${esc(document.getElementById('email').value.trim())}"></div>
+        <button class="btn primary block lg">Pedir nova senha</button>
+      </form>`);
+      el.querySelector('#forgot-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const btn = ev.target.querySelector('button.primary');
+        btn.disabled = true;
+        try {
+          await api('/api/public/password-request', { method: 'POST', body: { email: el.querySelector('#forgot-email').value } });
+          el.querySelector('#forgot-form').innerHTML = `
+            <div class="row"><h2 class="spacer">Pedido enviado ✓</h2><button type="button" class="btn ghost" data-close aria-label="Fechar">✕</button></div>
+            <p class="muted">Recebemos seu pedido. Em breve você recebe uma senha temporária para entrar.</p>
+            <button type="button" class="btn primary block" data-close>Ok</button>`;
+        } catch (err) {
+          toast(err.message, 'error');
+          btn.disabled = false;
+        }
+      });
     });
 
     // Se o servidor ou o banco estiverem fora, avisa em vez de deixar o botão "morto".

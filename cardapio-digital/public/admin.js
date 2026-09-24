@@ -21,6 +21,7 @@ async function boot() {
   }
   document.getElementById('layout').classList.remove('hidden');
   document.getElementById('nav-superadmin').classList.toggle('hidden', !me.is_superadmin);
+  if (me.is_superadmin) refreshResetCount();
   document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => go(b.dataset.view)));
   document.getElementById('logout').addEventListener('click', async () => {
     await api('/api/auth/logout', { method: 'POST' });
@@ -761,15 +762,33 @@ async function renderBilling() {
 
 // ================= SUPERADMIN =================
 
+// Contador de pedidos de nova senha na aba "Clientes do SaaS".
+function showResetCount(pending) {
+  const badge = document.getElementById('reset-count');
+  badge.textContent = pending;
+  badge.classList.toggle('hidden', !pending);
+}
+
+async function refreshResetCount() {
+  try {
+    const list = await api('/api/superadmin/restaurants');
+    showResetCount(list.filter((r) => r.password_reset_requested_at).length);
+  } catch { /* sem permissão ou fora do ar */ }
+}
+
 async function renderSuperadmin() {
   const list = await api('/api/superadmin/restaurants');
+  const pending = list.filter((r) => r.password_reset_requested_at).length;
+  showResetCount(pending);
   document.getElementById('view').innerHTML = `
+    ${pending ? `<div class="banner danger">${pending} pedido(s) de nova senha. Clique em "Nova senha" na loja destacada e envie a senha para o dono.</div>` : ''}
     <div class="card" style="overflow-x:auto"><table>
       <thead><tr><th>Estabelecimento</th><th>Dono</th><th>Criado em</th><th>Pedidos</th><th>Plano</th><th>Stripe</th><th>Teste até</th><th></th></tr></thead>
-      <tbody>${list.map((r) => `<tr data-rid="${r.id}">
-        <td><a href="/m/${esc(r.slug)}" target="_blank" rel="noopener">${esc(r.name)}</a></td>
+      <tbody>${list.map((r) => `<tr data-rid="${r.id}" ${r.password_reset_requested_at ? 'style="background:rgba(197,48,48,.08)"' : ''}>
+        <td><a href="/m/${esc(r.slug)}" target="_blank" rel="noopener">${esc(r.name)}</a>
+          ${r.password_reset_requested_at ? `<div><span class="badge danger">Pediu nova senha · ${formatDateTime(r.password_reset_requested_at)}</span></div>` : ''}</td>
         <td>${esc(r.owner_email)}</td><td>${formatDateTime(r.created_at)}</td><td>${r.total_orders}</td>
-        <td><select data-plan>${['trial', 'paid', 'suspended'].map((p) => `<option ${p === r.plan ? 'selected' : ''}>${p}</option>`).join('')}</select></td>
+        <td><select data-plan style="min-width:110px">${['trial', 'paid', 'suspended'].map((p) => `<option ${p === r.plan ? 'selected' : ''}>${p}</option>`).join('')}</select></td>
         <td>${esc(r.subscription_status || '—')}</td>
         <td>${formatDateTime(r.trial_ends_at)}</td>
         <td class="row"><button class="btn sm" data-save>Salvar</button><button class="btn sm" data-extend>+14 dias</button><button class="btn sm" data-reset>Nova senha</button></td>
@@ -803,6 +822,7 @@ async function renderSuperadmin() {
       el.querySelector('#copy-pw').addEventListener('click', async () => {
         try { await navigator.clipboard.writeText(msg); toast('Mensagem copiada!'); } catch { toast('Copie a senha manualmente.', 'error'); }
       });
+      renderSuperadmin();
     });
   });
 }

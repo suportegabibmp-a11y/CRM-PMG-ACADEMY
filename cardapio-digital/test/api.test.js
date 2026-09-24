@@ -214,6 +214,16 @@ test('senha: trocar, esqueci (admin gera temporária) e sessões antigas encerra
   assert.equal((await volta('/api/auth/login', { method: 'POST', body: { email: 'dono-senha@test.com', password: reset.body.password } })).status, 200);
   assert.equal((await volta('/api/auth/change-password', { method: 'POST', body: { current_password: reset.body.password, new_password: 'minha-senha-nova' } })).status, 200);
 
+  // "Esqueci minha senha" pelo site: o pedido aparece para o admin e some ao gerar a senha.
+  assert.equal((await client()('/api/public/password-request', { method: 'POST', body: { email: 'nao-existe@test.com' } })).status, 200);
+  assert.equal((await client()('/api/public/password-request', { method: 'POST', body: { email: 'DONO-SENHA@test.com' } })).status, 200);
+  let row = (await admin('/api/superadmin/restaurants')).body.find((r) => r.owner_email === 'dono-senha@test.com');
+  assert.ok(row.password_reset_requested_at, 'pedido registrado');
+  assert.equal((await admin('/api/superadmin/restaurants')).body[0].owner_email, 'dono-senha@test.com', 'pedidos aparecem primeiro');
+  await admin(`/api/superadmin/restaurants/${rid}/reset-password`, { method: 'POST' });
+  row = (await admin('/api/superadmin/restaurants')).body.find((r) => r.owner_email === 'dono-senha@test.com');
+  assert.equal(row.password_reset_requested_at, null, 'pedido atendido');
+
   const support = await client()('/api/public/support');
   assert.equal(support.status, 200);
   assert.deepEqual(Object.keys(support.body).sort(), ['email', 'whatsapp']);
