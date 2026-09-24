@@ -4,6 +4,6 @@
 // O Supabase injeta SUPABASE_DB_URL, então o banco conecta sem configuração.
 // A autenticação é feita pelo próprio servidor (sessões e códigos de uso único),
 // por isso a função é publicada com verify_jwt desligado.
-import app from 'https://raw.githubusercontent.com/suportegabibmp-a11y/CRM-PMG-ACADEMY/e0eb329c78164f716efa0b965ee9215101d926e5/cardapio-digital/server/index.js';
+import app from 'https://raw.githubusercontent.com/suportegabibmp-a11y/CRM-PMG-ACADEMY/407fd7125210740e940cd25236a09c1f7568bbf7/cardapio-digital/server/index.js';
 
 app.listen(8000);
