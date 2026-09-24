@@ -4,6 +4,7 @@ import process from 'node:process';
 
 process.env.DB_PATH = ':memory:';
 process.env.ALLOW_DEMO_PAYMENTS = 'true';
+process.env.SUPERADMIN_EMAILS = 'admin@test.com';
 const { default: app } = await import('../server/index.js');
 
 let server;
@@ -181,4 +182,39 @@ test('upload de foto e diagnóstico', async () => {
 
   assert.equal((await c('/api/admin/images', { method: 'POST', body: { data_url: 'data:text/html;base64,PGgxPg==' } })).status, 400);
   assert.equal((await client()('/api/admin/images', { method: 'POST', body: { data_url: `data:image/png;base64,${png}` } })).status, 401);
+});
+
+test('senha: trocar, esqueci (admin gera temporária) e sessões antigas encerradas', async () => {
+  const { c } = await setupRestaurant('Senhas', 'dono-senha@test.com');
+  const outroAparelho = client();
+  await outroAparelho('/api/auth/login', { method: 'POST', body: { email: 'dono-senha@test.com', password: 'senha-segura' } });
+
+  // Trocar a senha logado.
+  assert.equal((await c('/api/auth/change-password', { method: 'POST', body: { current_password: 'errada', new_password: 'nova-senha-1' } })).status, 400);
+  assert.equal((await c('/api/auth/change-password', { method: 'POST', body: { current_password: 'senha-segura', new_password: 'curta' } })).status, 400);
+  assert.equal((await c('/api/auth/change-password', { method: 'POST', body: { current_password: 'senha-segura', new_password: 'nova-senha-1' } })).status, 200);
+  assert.equal((await c('/api/auth/me')).status, 200, 'continua logado neste aparelho');
+  assert.equal((await outroAparelho('/api/auth/me')).status, 401, 'os outros aparelhos saem');
+  assert.equal((await client()('/api/auth/login', { method: 'POST', body: { email: 'dono-senha@test.com', password: 'nova-senha-1' } })).status, 200);
+
+  // Esqueci a senha: só o admin gera a temporária.
+  const rid = (await c('/api/auth/me')).body.restaurant.id;
+  assert.equal((await c(`/api/superadmin/restaurants/${rid}/reset-password`, { method: 'POST' })).status, 403);
+
+  const admin = client();
+  await admin('/api/auth/signup', { method: 'POST', body: { name: 'Admin', email: 'admin@test.com', password: 'senha-admin-1', restaurantName: 'Admin Loja' } });
+  const reset = await admin(`/api/superadmin/restaurants/${rid}/reset-password`, { method: 'POST' });
+  assert.equal(reset.status, 200);
+  assert.equal(reset.body.email, 'dono-senha@test.com');
+  assert.match(reset.body.password, /^[a-z2-9]{10}$/);
+
+  assert.equal((await c('/api/auth/me')).status, 401, 'a sessão antiga cai');
+  assert.equal((await client()('/api/auth/login', { method: 'POST', body: { email: 'dono-senha@test.com', password: 'nova-senha-1' } })).status, 401);
+  const volta = client();
+  assert.equal((await volta('/api/auth/login', { method: 'POST', body: { email: 'dono-senha@test.com', password: reset.body.password } })).status, 200);
+  assert.equal((await volta('/api/auth/change-password', { method: 'POST', body: { current_password: reset.body.password, new_password: 'minha-senha-nova' } })).status, 200);
+
+  const support = await client()('/api/public/support');
+  assert.equal(support.status, 200);
+  assert.deepEqual(Object.keys(support.body).sort(), ['email', 'whatsapp']);
 });

@@ -29,6 +29,10 @@ export async function createSession(req, res, userId) {
   return token;
 }
 
+export function currentToken(req) {
+  return readToken(req) || '';
+}
+
 function readToken(req) {
   const header = String(req.headers.authorization || '');
   if (header.startsWith('Bearer ')) return header.slice(7).trim();

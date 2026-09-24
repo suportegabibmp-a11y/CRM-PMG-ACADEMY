@@ -640,6 +640,32 @@ function renderSettings() {
       <div><button class="btn primary lg">Salvar configurações</button></div>
     </form>`;
 
+  document.getElementById('view').insertAdjacentHTML('beforeend', `
+    <form class="settings" id="pwform" style="margin-top:16px">
+      <div class="card">
+        <h2>Alterar senha</h2>
+        <div class="grid-2">
+          <div class="field"><label for="pw-current">Senha atual</label><input id="pw-current" type="password" autocomplete="current-password" required></div>
+          <div class="field"><label for="pw-new">Nova senha</label><input id="pw-new" type="password" autocomplete="new-password" minlength="8" required>
+            <div class="hint">Mínimo de 8 caracteres</div></div>
+        </div>
+        <button class="btn">Alterar senha</button>
+      </div>
+    </form>`);
+  document.getElementById('pwform').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/auth/change-password', { method: 'POST', body: {
+        current_password: document.getElementById('pw-current').value,
+        new_password: document.getElementById('pw-new').value,
+      } });
+      e.target.reset();
+      toast('Senha alterada!');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+
   bindImageFields(document.getElementById('sform'));
   document.getElementById('sform').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -746,7 +772,7 @@ async function renderSuperadmin() {
         <td><select data-plan>${['trial', 'paid', 'suspended'].map((p) => `<option ${p === r.plan ? 'selected' : ''}>${p}</option>`).join('')}</select></td>
         <td>${esc(r.subscription_status || '—')}</td>
         <td>${formatDateTime(r.trial_ends_at)}</td>
-        <td class="row"><button class="btn sm" data-save>Salvar</button><button class="btn sm" data-extend>+14 dias</button></td>
+        <td class="row"><button class="btn sm" data-save>Salvar</button><button class="btn sm" data-extend>+14 dias</button><button class="btn sm" data-reset>Nova senha</button></td>
       </tr>`).join('')}</tbody></table></div>`;
   document.querySelectorAll('[data-rid]').forEach((row) => {
     const id = row.dataset.rid;
@@ -758,6 +784,25 @@ async function renderSuperadmin() {
     row.querySelector('[data-extend]').addEventListener('click', async () => {
       await api(`/api/superadmin/restaurants/${id}`, { method: 'PATCH', body: { plan: plan(), extend_trial_days: 14 } });
       renderSuperadmin();
+    });
+    row.querySelector('[data-reset]').addEventListener('click', async () => {
+      const r = list.find((x) => String(x.id) === id);
+      if (!confirm(`Gerar uma nova senha para ${r.owner_email}? A senha atual deixa de funcionar.`)) return;
+      const res = await api(`/api/superadmin/restaurants/${id}/reset-password`, { method: 'POST' });
+      const msg = `Olá! Sua nova senha do Cardápio Digital é: ${res.password}\nEntre com o e-mail ${res.email} e troque a senha em Configurações > Alterar senha.`;
+      const { el } = openModal(`<div class="modal-body">
+        <div class="row"><h2 class="spacer">Nova senha gerada</h2><button class="btn ghost" data-close aria-label="Fechar">✕</button></div>
+        <p class="muted">Envie para o dono da loja. Ela aparece só agora.</p>
+        <p>E-mail: <strong>${esc(res.email)}</strong></p>
+        <p style="font-size:1.4rem;font-family:ui-monospace,monospace;letter-spacing:.05em"><strong>${esc(res.password)}</strong></p>
+        <div style="display:grid;gap:10px">
+          <button class="btn" id="copy-pw">Copiar mensagem</button>
+          ${res.whatsapp ? `<a class="btn primary" target="_blank" rel="noopener" href="https://wa.me/55${esc(res.whatsapp)}?text=${encodeURIComponent(msg)}">Enviar pelo WhatsApp da loja</a>` : ''}
+        </div>
+      </div>`);
+      el.querySelector('#copy-pw').addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(msg); toast('Mensagem copiada!'); } catch { toast('Copie a senha manualmente.', 'error'); }
+      });
     });
   });
 }

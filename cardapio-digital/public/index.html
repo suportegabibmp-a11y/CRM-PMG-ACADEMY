@@ -69,6 +69,7 @@
           <div class="field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email"></div>
           <div class="field"><label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8"><div class="hint signup-only">Mínimo de 8 caracteres</div></div>
           <button class="btn primary block lg" id="submit">Começar teste grátis de 14 dias</button>
+          <p class="login-only hidden" style="text-align:center;margin:14px 0 0"><a href="#" id="forgot">Esqueci minha senha</a></p>
         </form>
       </div>
     </section>
@@ -106,6 +107,7 @@
       mode = m;
       document.querySelectorAll('.switch button').forEach((b) => b.classList.toggle('active', b.dataset.mode === m));
       document.querySelectorAll('.signup-only').forEach((el) => el.classList.toggle('hidden', m !== 'signup'));
+      document.querySelectorAll('.login-only').forEach((el) => el.classList.toggle('hidden', m !== 'login'));
       document.getElementById('password').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
       submit.textContent = m === 'signup' ? 'Começar teste grátis de 14 dias' : 'Entrar no painel';
     }
@@ -125,6 +127,25 @@
     });
 
     // Já logado? Mostra o atalho para o painel.
+    // Esqueci minha senha: a pessoa fala com o suporte, que gera uma senha
+    // temporária no painel; depois ela troca em Configurações.
+    document.getElementById('forgot').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const support = await api('/api/public/support').catch(() => ({}));
+      const msg = `Olá! Esqueci minha senha do Cardápio Digital. Meu e-mail de acesso é: ${email || '(seu e-mail)'}`;
+      const buttons = [
+        support.whatsapp && `<a class="btn primary block" target="_blank" rel="noopener" href="https://wa.me/${esc(support.whatsapp)}?text=${encodeURIComponent(msg)}">Pedir nova senha pelo WhatsApp</a>`,
+        support.email && `<a class="btn ${support.whatsapp ? '' : 'primary'} block" href="mailto:${esc(support.email)}?subject=${encodeURIComponent('Esqueci minha senha')}&body=${encodeURIComponent(msg)}">Pedir nova senha por e-mail</a>`,
+      ].filter(Boolean);
+      openModal(`<div class="modal-body">
+        <div class="row"><h2 class="spacer">Esqueci minha senha</h2><button class="btn ghost" data-close aria-label="Fechar">✕</button></div>
+        <p class="muted">Fale com o suporte informando o e-mail da sua conta. Você vai receber uma senha temporária para entrar
+          e depois pode criar a sua em <strong>Configurações → Alterar senha</strong>.</p>
+        <div style="display:grid;gap:10px">${buttons.join('') || '<p class="muted">Entre em contato com o suporte do sistema.</p>'}</div>
+      </div>`);
+    });
+
     // Se o servidor ou o banco estiverem fora, avisa em vez de deixar o botão "morto".
     fetch('/api/health').then((r) => r.json().then((d) => ({ ok: r.ok && d.ok, d })).catch(() => ({ ok: false, d: { database: `a API não respondeu (HTTP ${r.status}). A função da Netlify não foi publicada.` } })))
       .then(({ ok, d }) => {

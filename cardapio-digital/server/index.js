@@ -23,7 +23,7 @@ function databaseHint(err) {
 }
 
 // Muda a cada atualização, para conferir se o deploy novo está no ar.
-const APP_VERSION = '2026-09-24.9';
+const APP_VERSION = '2026-09-24.10';
 
 // Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
 app.get('/api/health', async (req, res) => {
@@ -276,6 +276,26 @@ app.post('/api/auth/logout', async (req, res) => {
   res.json({ ok: true });
 });
 
+// Troca de senha pelo próprio usuário (logado). Encerra as outras sessões.
+app.post('/api/auth/change-password', rateLimit('change-password', 10, 15 * 60e3), auth.requireAuth, async (req, res) => {
+  const current = typeof req.body.current_password === 'string' ? req.body.current_password : '';
+  const next = typeof req.body.new_password === 'string' ? req.body.new_password : '';
+  const user = await db.one('SELECT password_hash FROM cardapio.users WHERE id = $1', [req.user.id]);
+  if (!auth.verifyPassword(current, user.password_hash)) throw new HttpError(400, 'Senha atual incorreta.');
+  if (next.length < 8) throw new HttpError(400, 'A nova senha precisa ter pelo menos 8 caracteres.');
+  await db.query('UPDATE cardapio.users SET password_hash = $1 WHERE id = $2', [auth.hashPassword(next), req.user.id]);
+  await db.query('DELETE FROM cardapio.sessions WHERE user_id = $1 AND token <> $2', [req.user.id, auth.currentToken(req)]);
+  res.json({ ok: true });
+});
+
+// Contato do suporte, mostrado em "Esqueci minha senha".
+// Vem da tabela cardapio.settings (support_email e support_whatsapp).
+app.get('/api/public/support', async (req, res) => {
+  const rows = await db.query(`SELECT key, value FROM cardapio.settings WHERE key IN ('support_email', 'support_whatsapp')`);
+  const get = (k) => rows.find((r) => r.key === k)?.value || '';
+  res.json({ email: get('support_email'), whatsapp: get('support_whatsapp').replace(/\D/g, '') });
+});
+
 app.get('/api/auth/me', auth.requireAuth, async (req, res) => {
   // Confere a assinatura no Stripe de vez em quando (no máximo 1x por hora).
   if (await billing.maybeSync(req.restaurant, 3600e3)) {
@@ -522,7 +542,7 @@ superadmin.use(auth.requireAuth, async (req, res, next) => {
 
 superadmin.get('/restaurants', async (req, res) => {
   res.json([...await db.query(
-    `SELECT r.id, r.name, r.slug, r.plan, r.trial_ends_at, r.created_at, u.email AS owner_email,
+    `SELECT r.id, r.name, r.slug, r.plan, r.trial_ends_at, r.created_at, u.email AS owner_email, r.whatsapp,
      r.subscription_status, r.current_period_end,
      (SELECT COUNT(*)::int FROM cardapio.orders o WHERE o.restaurant_id = r.id) AS total_orders
      FROM cardapio.restaurants r JOIN cardapio.users u ON u.id = r.owner_id ORDER BY r.created_at DESC`
@@ -540,6 +560,21 @@ superadmin.patch('/restaurants/:id', async (req, res) => {
     [plan, extraDays, intId(req.params.id)]
   );
   res.json({ ok: true });
+});
+
+// Gera uma senha temporária para o dono da loja (quando ele esqueceu a senha).
+// Encerra todas as sessões dele; a senha aparece uma única vez para o admin.
+superadmin.post('/restaurants/:id/reset-password', async (req, res) => {
+  const owner = await db.one(
+    `SELECT u.id, u.email, r.whatsapp FROM cardapio.restaurants r JOIN cardapio.users u ON u.id = r.owner_id WHERE r.id = $1`,
+    [intId(req.params.id)]
+  );
+  if (!owner) throw new HttpError(404, 'Loja não encontrada.');
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const password = Array.from(crypto.randomBytes(10), (b) => alphabet[b % alphabet.length]).join('');
+  await db.query('UPDATE cardapio.users SET password_hash = $1 WHERE id = $2', [auth.hashPassword(password), owner.id]);
+  await db.query('DELETE FROM cardapio.sessions WHERE user_id = $1', [owner.id]);
+  res.json({ password, email: owner.email, whatsapp: owner.whatsapp });
 });
 
 app.use('/api/superadmin', superadmin);
