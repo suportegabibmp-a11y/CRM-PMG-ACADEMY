@@ -31,6 +31,7 @@
     .pricing .card.hl { border: 2px solid var(--brand); }
     footer { text-align: center; padding: 30px 16px; color: var(--muted); font-size: .9rem; }
     .checks { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 8px; }
+    .banner-error { background: rgba(197,48,48,.12); color: var(--danger); padding: 12px 14px; border-radius: 10px; margin-bottom: 16px; }
     .checks li::before { content: '✓ '; color: var(--ok); font-weight: 800; }
   </style>
 </head>
@@ -121,6 +122,17 @@
     });
 
     // Já logado? Mostra o atalho para o painel.
+    // Se o servidor ou o banco estiverem fora, avisa em vez de deixar o botão "morto".
+    fetch('/api/health').then((r) => r.json().then((d) => ({ ok: r.ok && d.ok, d })).catch(() => ({ ok: false, d: { database: `a API não respondeu (HTTP ${r.status}). A função da Netlify não foi publicada.` } })))
+      .then(({ ok, d }) => {
+        if (ok) return;
+        const box = document.createElement('div');
+        box.className = 'banner-error';
+        box.innerHTML = `<strong>Sistema indisponível no momento.</strong><br><span class="small">Diagnóstico: ${esc(d.database || 'erro desconhecido')}</span>`;
+        document.getElementById('auth').prepend(box);
+      })
+      .catch(() => {});
+
     api('/api/auth/me').then(() => document.getElementById('go-admin').classList.remove('hidden')).catch(() => {});
   </script>
 </body>

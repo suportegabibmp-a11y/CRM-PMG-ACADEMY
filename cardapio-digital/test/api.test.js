@@ -161,3 +161,21 @@ test('login e e-mail duplicado', async () => {
   const dup = await client()('/api/auth/signup', { method: 'POST', body: { name: 'X', email: 'e@test.com', password: 'senha-segura', restaurantName: 'Y' } });
   assert.equal(dup.status, 409);
 });
+
+test('upload de foto e diagnóstico', async () => {
+  const health = await client()('/api/health');
+  assert.equal(health.status, 200);
+  assert.equal(health.body.database, 'ok');
+
+  const { c } = await setupRestaurant('Fotos', 'f@test.com');
+  // PNG 1x1
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const up = await c('/api/admin/images', { method: 'POST', body: { data_url: `data:image/png;base64,${png}` } });
+  assert.equal(up.status, 201);
+  const res = await fetch(base + up.body.url);
+  assert.equal(res.headers.get('content-type'), 'image/png');
+  assert.deepEqual(Buffer.from(await res.arrayBuffer()), Buffer.from(png, 'base64'));
+
+  assert.equal((await c('/api/admin/images', { method: 'POST', body: { data_url: 'data:text/html;base64,PGgxPg==' } })).status, 400);
+  assert.equal((await client()('/api/admin/images', { method: 'POST', body: { data_url: `data:image/png;base64,${png}` } })).status, 401);
+});

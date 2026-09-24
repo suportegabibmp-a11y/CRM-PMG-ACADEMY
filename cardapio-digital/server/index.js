@@ -21,6 +21,46 @@ app.post('/api/webhooks/stripe', express.raw({ type: '*/*', limit: '1mb' }), asy
   }
 });
 
+// Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
+app.get('/api/health', async (req, res) => {
+  const checks = {
+    database_url_configured: Boolean(process.env.DATABASE_URL),
+    stripe_configured: billing.enabled(),
+  };
+  if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+    return res.status(503).json({ ok: false, ...checks, database: 'DATABASE_URL não configurada nas variáveis de ambiente' });
+  }
+  try {
+    await db.query('SELECT 1 FROM cardapio.restaurants LIMIT 1');
+    res.json({ ok: true, ...checks, database: 'ok' });
+  } catch (err) {
+    console.error('Health check:', err);
+    res.status(503).json({ ok: false, ...checks, database: `erro ao conectar: ${String(err.message).slice(0, 200)}` });
+  }
+});
+
+// Upload de fotos: o navegador já envia a imagem reduzida (JPEG/PNG/WebP em
+// base64). Registrado antes do express.json() geral por causa do tamanho.
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+app.post('/api/admin/images', express.json({ limit: '4mb' }), auth.requireAuth, async (req, res) => {
+  const match = /^data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.data_url || ''));
+  if (!match || !IMAGE_TYPES.includes(match[1])) throw new HttpError(400, 'Envie uma imagem JPG, PNG ou WebP.');
+  const data = Buffer.from(match[2], 'base64');
+  if (data.length > 2 * 1024 * 1024) throw new HttpError(413, 'Imagem muito grande (máximo 2 MB).');
+  const id = crypto.randomUUID();
+  await db.query('INSERT INTO cardapio.images (id, restaurant_id, content_type, data) VALUES ($1, $2, $3, $4)',
+    [id, req.restaurant.id, match[1], data]);
+  res.status(201).json({ url: `/api/img/${id}` });
+});
+
+app.get('/api/img/:id', async (req, res) => {
+  if (!/^[0-9a-f-]{36}$/.test(req.params.id)) throw new HttpError(404, 'Imagem não encontrada.');
+  const img = await db.one('SELECT content_type, data FROM cardapio.images WHERE id = $1', [req.params.id]);
+  if (!img) throw new HttpError(404, 'Imagem não encontrada.');
+  res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  res.type(img.content_type).send(Buffer.from(img.data));
+});
+
 app.use(express.json({ limit: '200kb' }));
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');

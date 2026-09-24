@@ -269,6 +269,79 @@ async function drawHistory() {
   bindOrderActions(area);
 }
 
+// ================= FOTOS =================
+
+// Campo de imagem: botão para enviar do computador/celular + link opcional.
+function imageField(name, label, value, id) {
+  return `<div class="field image-field">
+    <label for="${id}">${label}</label>
+    <div class="row" style="align-items:flex-start">
+      <img class="img-preview ${value ? '' : 'hidden'}" src="${esc(value)}" alt="">
+      <div class="spacer">
+        <label class="btn upload-btn">📷 Enviar foto<input type="file" accept="image/*" hidden></label>
+        <button type="button" class="btn ghost sm remove-img ${value ? '' : 'hidden'}">Remover</button>
+        <input id="${id}" name="${name}" type="text" placeholder="ou cole o link de uma imagem" value="${esc(value)}" style="margin-top:8px">
+      </div>
+    </div>
+  </div>`;
+}
+
+// Reduz a imagem no navegador (máx. 1200px, JPEG) antes de enviar.
+function shrinkImage(file, maxSize = 1200) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => reject(new Error('Não foi possível ler essa imagem.'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function bindImageFields(root) {
+  root.querySelectorAll('.image-field').forEach((field) => {
+    const input = field.querySelector('input[type=text]');
+    const preview = field.querySelector('.img-preview');
+    const remove = field.querySelector('.remove-img');
+    const btn = field.querySelector('.upload-btn');
+    const show = (url) => {
+      input.value = url;
+      preview.src = url;
+      preview.classList.toggle('hidden', !url);
+      remove.classList.toggle('hidden', !url);
+    };
+    input.addEventListener('change', () => show(input.value.trim()));
+    remove.addEventListener('click', () => show(''));
+    field.querySelector('input[type=file]').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      btn.classList.add('loading');
+      btn.firstChild.textContent = 'Enviando…';
+      try {
+        const dataUrl = await shrinkImage(file);
+        const { url } = await api('/api/admin/images', { method: 'POST', body: { data_url: dataUrl } });
+        show(url);
+        toast('Foto enviada! Lembre de salvar.');
+      } catch (err) {
+        toast(err.message, 'error');
+      } finally {
+        btn.classList.remove('loading');
+        btn.firstChild.textContent = '📷 Enviar foto';
+      }
+    });
+  });
+}
+
 // ================= CARDÁPIO =================
 
 let menuData;
@@ -357,8 +430,7 @@ function productForm(p = null) {
             ${categories.map((c) => `<option value="${c.id}" ${p?.category_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
           </select></div>
         </div>
-        <div class="field"><label for="p-img">URL da foto</label><input id="p-img" name="image_url" type="url" placeholder="https://…" value="${esc(p?.image_url)}">
-          <div class="hint">Cole o link de uma imagem (ex.: do Instagram, Google Drive público ou Imgur).</div></div>
+        ${imageField('image_url', 'Foto do produto', p?.image_url || '', 'p-img')}
         <label class="check"><input type="checkbox" name="available" ${!p || p.available ? 'checked' : ''}> Disponível para venda</label>
         <h3 style="margin-top:16px">Adicionais</h3>
         <p class="hint">Opcionais que o cliente pode incluir, como bacon extra ou queijo.</p>
@@ -372,6 +444,7 @@ function productForm(p = null) {
       </div>
     </form>`);
 
+  bindImageFields(el);
   const addonsEl = el.querySelector('#addons');
   const addAddon = (a = {}) => {
     const row = document.createElement('div');
@@ -533,8 +606,8 @@ function renderSettings() {
       <div class="card">
         <h2>Aparência</h2>
         <div class="grid-2">
-          <div class="field"><label for="s-logo">URL do logo</label><input id="s-logo" name="logo_url" type="url" value="${esc(r.logo_url)}"></div>
-          <div class="field"><label for="s-cover">URL da imagem de capa</label><input id="s-cover" name="cover_url" type="url" value="${esc(r.cover_url)}"></div>
+          ${imageField('logo_url', 'Logo', r.logo_url, 's-logo')}
+          ${imageField('cover_url', 'Imagem de capa', r.cover_url, 's-cover')}
         </div>
         <div class="field"><label for="s-color">Cor principal</label><input id="s-color" name="primary_color" type="color" value="${esc(r.primary_color)}" style="width:80px;height:44px;padding:4px"></div>
       </div>
@@ -567,6 +640,7 @@ function renderSettings() {
       <div><button class="btn primary lg">Salvar configurações</button></div>
     </form>`;
 
+  bindImageFields(document.getElementById('sform'));
   document.getElementById('sform').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = e.target.elements;

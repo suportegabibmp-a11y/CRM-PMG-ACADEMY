@@ -6,9 +6,13 @@ async function api(path, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
     credentials: 'same-origin',
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(data.error || 'Erro inesperado. Tente novamente.');
+  const data = await res.json().catch(() => null);
+  if (!res.ok || data === null) {
+    // Sem JSON: a API nem respondeu (função não publicada ou fora do ar).
+    const fallback = data === null
+      ? `O servidor não respondeu (HTTP ${res.status}). Abra /api/health para ver o diagnóstico.`
+      : 'Erro inesperado. Tente novamente.';
+    const err = new Error(data?.error || fallback);
     err.status = res.status;
     throw err;
   }

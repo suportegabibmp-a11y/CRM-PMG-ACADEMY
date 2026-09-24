@@ -120,6 +120,16 @@ ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS stripe_subscription_id
 ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT '';
 ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
 
+-- Fotos enviadas pelo painel (produtos, logo e capa)
+CREATE TABLE IF NOT EXISTS cardapio.images (
+  id TEXT PRIMARY KEY,
+  restaurant_id INTEGER NOT NULL REFERENCES cardapio.restaurants(id) ON DELETE CASCADE,
+  content_type TEXT NOT NULL,
+  data BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE cardapio.images ENABLE ROW LEVEL SECURITY;
+
 -- Defesa extra: mesmo que alguém exponha o schema na API do Supabase,
 -- nenhuma linha fica visível sem políticas. O backend conecta como dono das tabelas.
 ALTER TABLE cardapio.users ENABLE ROW LEVEL SECURITY;
