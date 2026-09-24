@@ -13,7 +13,7 @@ async function confirmUserEmail() {
     // 1. Fazer login para obter o token de confirmação
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: 'gabii.maximino23@gmail.com',
-      password: 'Gabi@2309'
+      password: process.env.ADMIN_PASSWORD
     });
 
     if (signInError) {

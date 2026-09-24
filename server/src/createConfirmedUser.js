@@ -21,7 +21,7 @@ async function createConfirmedUserWithLifetimePlan() {
     // 2. Criar usuário com signup e confirmar automaticamente
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: 'gabii.maximino23@gmail.com',
-      password: 'Gabi@2309',
+      password: process.env.ADMIN_PASSWORD,
       options: {
         data: {
           name: 'Gabi Maximino',
@@ -41,7 +41,7 @@ async function createConfirmedUserWithLifetimePlan() {
         // Tentar fazer login direto
         const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
           email: 'gabii.maximino23@gmail.com',
-          password: 'Gabi@2309'
+          password: process.env.ADMIN_PASSWORD
         });
 
         if (loginError) {
@@ -89,7 +89,7 @@ async function createConfirmedUserWithLifetimePlan() {
     console.log('🔍 Tentando fazer login...');
     const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
       email: 'gabii.maximino23@gmail.com',
-      password: 'Gabi@2309'
+      password: process.env.ADMIN_PASSWORD
     });
 
     if (loginError) {

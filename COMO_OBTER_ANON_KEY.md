@@ -49,7 +49,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdmVidml
 ### **NÃO USE SERVICE ROLE KEY:**
 ```javascript
 // ❌ ERRADO - Esta é SERVICE ROLE KEY
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdmVidmljeXFuZXN3ZWRnd25hIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzU2NTk5NCwiZXhwIjoyMDkzMTQxOTk0fQ.Z1ath3lCQI4_VIQgabbFbPjI3xKLhvwWSKUC1boOCK4
+<SUPABASE_SERVICE_ROLE_KEY: removida por segurança; configure como variável de ambiente>
 ```
 
 ---

@@ -13,7 +13,7 @@ async function createUserWithLifetimePlan() {
     // 1. Criar usuário no Supabase Auth usando signup
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: 'gabii.maximino23@gmail.com',
-      password: 'Gabi@2309',
+      password: process.env.ADMIN_PASSWORD,
       options: {
         data: {
           name: 'Gabi Maximino',
@@ -47,7 +47,7 @@ async function createUserWithLifetimePlan() {
     console.log('\n🔍 Testando login...');
     const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
       email: 'gabii.maximino23@gmail.com',
-      password: 'Gabi@2309'
+      password: process.env.ADMIN_PASSWORD
     });
 
     if (loginError) {

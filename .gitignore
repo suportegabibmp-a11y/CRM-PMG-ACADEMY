@@ -27,3 +27,8 @@ yarn-error.log*
 
 # OS
 Thumbs.db
+
+# Segredos locais: nunca versionar
+.env
+**/.env
+!**/.env.example
