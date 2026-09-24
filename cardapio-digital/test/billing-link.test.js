@@ -76,3 +76,34 @@ test('pagamento de outra loja não ativa esta', async () => {
   assert.equal(v.subscription_status, '');
   assert.equal((await c('/api/auth/me')).body.restaurant.plan, 'trial', 'a loja que pagou ainda depende do próprio webhook');
 });
+
+test('pagou pelo botão da página inicial sem estar logado: ativa pelo e-mail', async () => {
+  const { c, me } = await newRestaurant('semlogin@test.com', 'Loja Sem Login');
+
+  // Pagamento pelo link puro (sem client_reference_id), com o e-mail da conta.
+  stripeState.customers.push({ id: 'cus_semlogin', email: 'semlogin@test.com', metadata: {} });
+  setSubscription('cus_semlogin', null, 'active', 'sub_semlogin');
+  const status = await sendWebhook('checkout.session.completed', {
+    id: 'cs_test_semlogin', object: 'checkout.session', mode: 'subscription', status: 'complete',
+    client_reference_id: null, customer: 'cus_semlogin', subscription: 'sub_semlogin',
+    customer_details: { email: 'semlogin@test.com' },
+  });
+  assert.equal(status, 200);
+
+  const r = (await c('/api/auth/me')).body.restaurant;
+  assert.equal(r.plan, 'paid');
+  assert.equal(r.subscription_active, true);
+  assert.ok(stripeState.metadataUpdates.some(([kind, id, m]) => kind === 'customer' && id === 'cus_semlogin' && m.restaurant_id === String(me.id)),
+    'marca o cliente do Stripe com a loja para os próximos eventos');
+  assert.equal((await c('/api/admin/billing/portal', { method: 'POST' })).body.url, 'https://billing.stripe.test/cus_semlogin');
+});
+
+test('pagou antes de criar a conta: ativa ao abrir a tela de assinatura', async () => {
+  stripeState.customers.push({ id: 'cus_antes', email: 'antes@test.com', metadata: {} });
+  setSubscription('cus_antes', null, 'active', 'sub_antes');
+
+  const { c } = await newRestaurant('antes@test.com', 'Loja Antes');
+  const billing = await c('/api/admin/billing');
+  assert.equal(billing.body.has_subscription, true);
+  assert.equal((await c('/api/auth/me')).body.restaurant.plan, 'paid');
+});

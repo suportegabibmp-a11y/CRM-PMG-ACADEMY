@@ -113,11 +113,31 @@ async function status({ token, checkout_session_id }) {
     }
     customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
   }
+  // Pagou pelo link sem estar logado (ou antes de criar a conta): procura
+  // um cliente do Stripe com o mesmo e-mail da conta e assinatura ativa.
+  let foundByEmail = false;
+  if (!customerId && info.email) {
+    const { data: customers } = await stripe().customers.list({ email: info.email, limit: 10 });
+    for (const c of customers) {
+      const { data: subs } = await stripe().subscriptions.list({ customer: c.id, status: 'all', limit: 10 });
+      if (subs.some((s) => LIVE_STATUSES.includes(s.status))) {
+        customerId = c.id;
+        foundByEmail = true;
+        break;
+      }
+    }
+  }
   if (!customerId) return { subscription: null };
   const { data } = await stripe().subscriptions.list({ customer: customerId, status: 'all', limit: 10 });
   const mine = data.filter((s) => !s.metadata?.restaurant_id || s.metadata.restaurant_id === String(info.restaurant_id));
   const best = mine.find((s) => LIVE_STATUSES.includes(s.status)) || mine[0];
   if (!best) return { subscription: null };
+  if (foundByEmail) {
+    // Marca no Stripe de qual restaurante é, para os próximos eventos.
+    const metadata = { restaurant_id: String(info.restaurant_id) };
+    await stripe().customers.update(customerId, { metadata });
+    if (!best.metadata?.restaurant_id) await stripe().subscriptions.update(best.id, { metadata });
+  }
   const item = best.items?.data?.[0];
   return {
     subscription: {
@@ -158,16 +178,26 @@ async function webhook(event) {
   }
 
   let restaurantId = obj.client_reference_id || obj.metadata?.restaurant_id;
+  const customerId = typeof obj.customer === 'string' ? obj.customer : obj.customer?.id;
+  let customer;
   if (!restaurantId) {
     const subId = obj.subscription || obj.parent?.subscription_details?.subscription;
-    const customerId = typeof obj.customer === 'string' ? obj.customer : obj.customer?.id;
     if (subId) {
       restaurantId = (await stripe().subscriptions.retrieve(typeof subId === 'string' ? subId : subId.id)).metadata?.restaurant_id;
-    } else if (customerId) {
-      restaurantId = (await stripe().customers.retrieve(customerId)).metadata?.restaurant_id;
+    }
+    if (!restaurantId && customerId) {
+      customer = await stripe().customers.retrieve(customerId);
+      restaurantId = customer.metadata?.restaurant_id;
     }
   }
-  if (restaurantId) await edge('/internal/stripe-sync', { restaurant_id: Number(restaurantId) });
+  if (restaurantId) {
+    await edge('/internal/stripe-sync', { restaurant_id: Number(restaurantId) });
+  } else {
+    // Pagou pelo link sem estar logado: o servidor procura a conta pelo e-mail
+    // e confere a assinatura no Stripe antes de ativar.
+    const email = obj.customer_details?.email || obj.customer_email || customer?.email;
+    if (email) await edge('/internal/stripe-sync', { email });
+  }
   return { received: true };
 }
 

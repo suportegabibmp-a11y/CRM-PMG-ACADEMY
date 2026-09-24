@@ -87,7 +87,10 @@
       <p class="muted" style="text-align:center;margin-bottom:24px">Comece com 14 dias grátis. Sem cartão de crédito.</p>
       <div class="pricing">
         <div class="card hl"><h3>Cardápio Digital completo</h3><div class="price">R$ 49,90<span class="small muted">/mês</span></div>
-          <ul><li>Cardápio e pedidos ilimitados</li><li>PIX e cartão online</li><li>Pagamento na entrega e pedidos na mesa</li><li>Painel de pedidos em tempo real</li><li>Relatórios de vendas</li><li>QR Codes para mesas</li></ul></div>
+          <ul><li>Cardápio e pedidos ilimitados</li><li>PIX e cartão online</li><li>Pagamento na entrega e pedidos na mesa</li><li>Painel de pedidos em tempo real</li><li>Relatórios de vendas</li><li>QR Codes para mesas</li></ul>
+          <a class="btn primary block lg" id="subscribe" href="https://buy.stripe.com/test_14A4gy6X03xH4iofhlgIo00">Assinar agora</a>
+          <p class="hint" style="text-align:center;margin-top:10px">Pagamento seguro pelo Stripe. Use o mesmo e-mail da sua conta.</p>
+        </div>
       </div>
     </section>
   </div>
@@ -133,7 +136,19 @@
       })
       .catch(() => {});
 
-    api('/api/auth/me').then(() => document.getElementById('go-admin').classList.remove('hidden')).catch(() => {});
+    // Logado: o botão Assinar usa o link com a loja já identificada.
+    api('/api/auth/me').then(() => {
+      document.getElementById('go-admin').classList.remove('hidden');
+      document.getElementById('subscribe').addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+          location.href = (await api('/api/admin/billing/checkout', { method: 'POST' })).url;
+        } catch (err) {
+          if (err.status === 409) { location.href = '/admin#billing'; return; }
+          location.href = e.target.href;
+        }
+      });
+    }).catch(() => {});
   </script>
 </body>
 </html>

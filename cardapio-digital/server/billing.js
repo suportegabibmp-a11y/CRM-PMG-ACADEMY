@@ -117,7 +117,7 @@ export async function createPortal({ restaurant, baseUrl }) {
 // checkoutSessionId: vem do webhook quando alguém paga pelo link; a função do
 // Stripe confere que a sessão é deste restaurante antes de responder.
 export async function syncSubscription(restaurant, { checkoutSessionId } = {}) {
-  if (!enabled() || (!restaurant.stripe_customer_id && !checkoutSessionId)) return;
+  if (!enabled()) return;
   const token = await issueToken(restaurant.id, 'status');
   const { subscription: sub } = await callService('/status', { token, checkout_session_id: checkoutSessionId });
   if (!sub) {
@@ -143,7 +143,7 @@ export async function syncSubscription(restaurant, { checkoutSessionId } = {}) {
 // Sincroniza se a última sincronização for mais antiga que maxAgeMs. Erros só
 // vão para o log: o painel continua funcionando com o último estado salvo.
 export async function maybeSync(restaurant, maxAgeMs) {
-  if (!enabled() || !restaurant.stripe_customer_id) return false;
+  if (!enabled()) return false;
   const last = restaurant.stripe_synced_at ? new Date(restaurant.stripe_synced_at).getTime() : 0;
   if (Date.now() - last < maxAgeMs) return false;
   try {

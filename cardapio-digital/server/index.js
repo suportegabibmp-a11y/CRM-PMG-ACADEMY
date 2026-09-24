@@ -730,7 +730,11 @@ app.post('/api/internal/stripe-token', rateLimit('stripe-token', 300, 15 * 60e3)
 // atual no Stripe nós mesmos, sem confiar no aviso.
 app.post('/api/internal/stripe-sync', rateLimit('stripe-sync', 120, 15 * 60e3), async (req, res) => {
   const id = Number(req.body?.restaurant_id);
-  const r = Number.isInteger(id) && id > 0 && await db.one('SELECT * FROM cardapio.restaurants WHERE id = $1', [id]);
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 200) : '';
+  const r = Number.isInteger(id) && id > 0
+    ? await db.one('SELECT * FROM cardapio.restaurants WHERE id = $1', [id])
+    : email && await db.one(
+      'SELECT r.* FROM cardapio.restaurants r JOIN cardapio.users u ON u.id = r.owner_id WHERE u.email = $1', [email]);
   const sessionId = String(req.body?.checkout_session_id || '');
   if (r && /^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
     try {

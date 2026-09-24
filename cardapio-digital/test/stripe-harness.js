@@ -46,7 +46,7 @@ export async function startHarness(env = {}) {
 
   // Stripe falso.
   const realWebhooks = new Stripe('sk_test_fake').webhooks;
-  const stripeState = { subsByCustomer: {}, sessions: [], checkoutSessions: {}, metadataUpdates: [] };
+  const stripeState = { subsByCustomer: {}, sessions: [], checkoutSessions: {}, metadataUpdates: [], customers: [] };
   let customerSeq = 0;
   const allSubs = () => Object.values(stripeState.subsByCustomer).flat();
   stripeFn.setClient({
@@ -58,7 +58,8 @@ export async function startHarness(env = {}) {
     },
     customers: {
       create: async (p) => ({ id: `cus_${++customerSeq}`, metadata: p.metadata }),
-      retrieve: async (id) => ({ id, metadata: {} }),
+      retrieve: async (id) => stripeState.customers.find((c) => c.id === id) || { id, metadata: {} },
+      list: async ({ email }) => ({ data: stripeState.customers.filter((c) => c.email === email) }),
       update: async (id, p) => { stripeState.metadataUpdates.push(['customer', id, p.metadata]); return { id }; },
     },
     checkout: {
