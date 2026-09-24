@@ -1,7 +1,7 @@
 const path = require('node:path');
 const crypto = require('node:crypto');
 const express = require('express');
-const { db } = require('./db');
+const { db, describeDatabaseUrl } = require('./db');
 const auth = require('./auth');
 const payments = require('./payments');
 const billing = require('./billing');
@@ -21,6 +21,16 @@ app.post('/api/webhooks/stripe', express.raw({ type: '*/*', limit: '1mb' }), asy
   }
 });
 
+function databaseHint(err, shown) {
+  const msg = String(err.message);
+  if (/password authentication failed/i.test(msg)) return 'Senha incorreta. Redefina a senha em Project Settings > Database e atualize a DATABASE_URL.';
+  if (/Tenant or user not found/i.test(msg)) return 'Usuário ou servidor errado. Copie de novo a URL do Transaction pooler (usuário postgres.SEU-PROJETO).';
+  if (shown && /:5432\//.test(shown) && /^postgresql:\/\/postgres:/.test(shown)) return 'Você usou a conexão direta (porta 5432). Use a do Transaction pooler (porta 6543).';
+  if (/ENOTFOUND|getaddrinfo/i.test(msg)) return 'Endereço do servidor não encontrado. Confira o host da URL (…pooler.supabase.com).';
+  if (/timeout|ETIMEDOUT|ENETUNREACH/i.test(msg)) return 'O servidor não respondeu. Use a URL do Transaction pooler (porta 6543).';
+  return 'Confira a DATABASE_URL: postgresql://postgres.SEU-PROJETO:SENHA@aws-0-REGIAO.pooler.supabase.com:6543/postgres';
+}
+
 // Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
 app.get('/api/health', async (req, res) => {
   const checks = {
@@ -35,7 +45,14 @@ app.get('/api/health', async (req, res) => {
     res.json({ ok: true, ...checks, database: 'ok' });
   } catch (err) {
     console.error('Health check:', err);
-    res.status(503).json({ ok: false, ...checks, database: `erro ao conectar: ${String(err.message).slice(0, 200)}` });
+    const shown = process.env.DATABASE_URL ? describeDatabaseUrl(process.env.DATABASE_URL) : null;
+    res.status(503).json({
+      ok: false,
+      ...checks,
+      database: `erro ao conectar: ${String(err.message).slice(0, 240)}`,
+      database_url_lida: shown || 'formato inválido',
+      dica: databaseHint(err, shown),
+    });
   }
 });
 

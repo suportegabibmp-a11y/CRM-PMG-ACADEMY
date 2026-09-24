@@ -142,13 +142,66 @@ ALTER TABLE cardapio.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cardapio.order_items ENABLE ROW LEVEL SECURITY;
 `;
 
+class ConfigError extends Error {}
+
+// Lê a DATABASE_URL de forma tolerante: aceita senha com caracteres especiais
+// (@ # / ? %), colchetes esquecidos do "[YOUR-PASSWORD]", espaços e aspas.
+function parseDatabaseUrl(raw) {
+  let text = String(raw).trim().replace(/^DATABASE_URL\s*=\s*/i, '').trim();
+  text = text.replace(/^["'`]+|["'`]+$/g, '').trim();
+  const scheme = /^(postgres(?:ql)?):\/\//i.exec(text);
+  if (!scheme) {
+    throw new ConfigError('a DATABASE_URL deve começar com postgresql:// (copie a "Connection string" do Transaction pooler, não a URL https do projeto)');
+  }
+  const rest = text.slice(scheme[0].length);
+  const at = rest.lastIndexOf('@');
+  if (at < 0) throw new ConfigError('a DATABASE_URL não tem usuário e senha (formato: postgresql://usuario:senha@host:6543/postgres)');
+  const userinfo = rest.slice(0, at);
+  const colon = userinfo.indexOf(':');
+  if (colon < 0) throw new ConfigError('a DATABASE_URL está sem a senha depois do usuário');
+  const username = userinfo.slice(0, colon);
+  let password = userinfo.slice(colon + 1);
+  if (/^\[.*\]$/.test(password)) password = password.slice(1, -1);
+  if (/YOUR-PASSWORD/i.test(password)) throw new ConfigError('troque [YOUR-PASSWORD] pela senha real do banco');
+  if (/%[0-9a-f]{2}/i.test(password)) {
+    try { password = decodeURIComponent(password); } catch { /* usa como está */ }
+  }
+  let hostUrl;
+  try {
+    hostUrl = new URL(`postgres://${rest.slice(at + 1)}`);
+  } catch {
+    throw new ConfigError(`o endereço do servidor na DATABASE_URL está inválido ("${rest.slice(at + 1).slice(0, 80)}")`);
+  }
+  if (!hostUrl.hostname) throw new ConfigError('a DATABASE_URL está sem o endereço do servidor');
+  return {
+    host: hostUrl.hostname,
+    port: Number(hostUrl.port) || 5432,
+    database: decodeURIComponent(hostUrl.pathname.replace(/^\//, '')) || 'postgres',
+    username: decodeURIComponent(username),
+    password,
+  };
+}
+
+// Versão da DATABASE_URL sem a senha, para mostrar no diagnóstico.
+function describeDatabaseUrl(raw) {
+  try {
+    const c = parseDatabaseUrl(raw);
+    return `postgresql://${c.username}:****@${c.host}:${c.port}/${c.database}`;
+  } catch {
+    return null;
+  }
+}
+
 async function connectPostgres(url) {
   const postgres = require('postgres');
-  const local = /localhost|127\.0\.0\.1/.test(url);
-  const sql = postgres(url, {
+  const config = parseDatabaseUrl(url);
+  const local = /^(localhost|127\.0\.0\.1)$/.test(config.host);
+  const sql = postgres({
+    ...config,
     prepare: false, // exigido pelo pooler em modo transação do Supabase (porta 6543)
     max: Number(process.env.DB_POOL_MAX) || 3,
     idle_timeout: 20,
+    connect_timeout: 15,
     ssl: local ? false : 'require',
     onnotice: () => {},
   });
@@ -198,4 +251,4 @@ const db = {
   tx: async (fn) => (await connection()).tx((runner) => fn(helpers(runner))),
 };
 
-module.exports = { db, SCHEMA_SQL };
+module.exports = { db, SCHEMA_SQL, parseDatabaseUrl, describeDatabaseUrl, ConfigError };
