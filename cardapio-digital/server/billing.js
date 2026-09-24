@@ -8,6 +8,7 @@
 import crypto from 'node:crypto';
 import { db } from './db.js';
 import { STRIPE_SERVICE_URL, PAYMENT_LINK } from './config.js';
+import { sha256 } from './security.js';
 
 export const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];
 
@@ -24,7 +25,7 @@ async function issueToken(restaurantId, purpose) {
   await db.query(
     `INSERT INTO cardapio.stripe_tokens (token, restaurant_id, purpose, expires_at)
      VALUES ($1, $2, $3, now() + interval '2 minutes')`,
-    [token, restaurantId, purpose]
+    [sha256(token), restaurantId, purpose]
   );
   return token;
 }
@@ -52,7 +53,7 @@ export async function redeemToken(token) {
   const row = await db.one(
     `UPDATE cardapio.stripe_tokens SET used = true
      WHERE token = $1 AND NOT used AND expires_at > now() RETURNING restaurant_id, purpose`,
-    [token]
+    [sha256(token)]
   );
   if (!row) return null;
   const r = await db.one(

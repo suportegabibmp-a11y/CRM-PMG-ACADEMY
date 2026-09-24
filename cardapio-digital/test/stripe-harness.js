@@ -78,10 +78,11 @@ export async function startHarness(env = {}) {
 
   function client() {
     let token = '';
+  const ip = `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
     return async (path, { method = 'GET', body } = {}) => {
       const res = await fetch(base + path, {
         method,
-        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        headers: { 'Content-Type': 'application/json', 'x-nf-client-connection-ip': ip, ...(token && { Authorization: `Bearer ${token}` }) },
         body: body ? JSON.stringify(body) : undefined,
       });
       const data = await res.json().catch(() => null);

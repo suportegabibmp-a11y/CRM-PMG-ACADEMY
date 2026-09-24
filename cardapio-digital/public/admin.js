@@ -48,6 +48,9 @@ function refreshChrome() {
   document.getElementById('open-label').textContent = restaurant.is_open ? 'Aberto' : 'Fechado';
 
   const banners = [];
+  if (me?.read_only) {
+    banners.push('<div class="banner">Conta de demonstração: você pode ver tudo, mas as alterações não são salvas.</div>');
+  }
   if (restaurant.plan === 'suspended') {
     banners.push('<div class="banner danger">Sua conta está suspensa. Entre em contato com o suporte.</div>');
   } else if (!restaurant.subscription_active) {

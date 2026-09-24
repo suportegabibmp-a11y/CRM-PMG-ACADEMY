@@ -156,6 +156,30 @@ ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS stripe_synced_at TIMES
 -- Pedido de "esqueci minha senha" aguardando o admin gerar uma senha temporária
 ALTER TABLE cardapio.users ADD COLUMN IF NOT EXISTS password_reset_requested_at TIMESTAMPTZ;
 
+-- Limite de tentativas (login, cadastro etc.), compartilhado entre instâncias
+CREATE TABLE IF NOT EXISTS cardapio.rate_limits (
+  bucket TEXT PRIMARY KEY,
+  count INTEGER NOT NULL,
+  reset_at TIMESTAMPTZ NOT NULL
+);
+ALTER TABLE cardapio.rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- Trilha de auditoria de ações sensíveis (sem senhas nem tokens)
+CREATE TABLE IF NOT EXISTS cardapio.audit_log (
+  id SERIAL PRIMARY KEY,
+  at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actor_user_id INTEGER,
+  action TEXT NOT NULL,
+  target TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT '',
+  meta TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_at ON cardapio.audit_log(at);
+ALTER TABLE cardapio.audit_log ENABLE ROW LEVEL SECURITY;
+
+-- Conta somente leitura (ex.: loja de demonstração pública)
+ALTER TABLE cardapio.users ADD COLUMN IF NOT EXISTS read_only BOOLEAN NOT NULL DEFAULT false;
+
 -- Defesa extra: mesmo que alguém exponha o schema na API do Supabase,
 -- nenhuma linha fica visível sem políticas. O backend conecta como dono das tabelas.
 ALTER TABLE cardapio.users ENABLE ROW LEVEL SECURITY;

@@ -47,7 +47,11 @@ async function redeem(token, purpose) {
 }
 
 function json(status, body) {
-  return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  return {
+    statusCode: status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+    body: JSON.stringify(body),
+  };
 }
 
 function describePrice(price) {
@@ -55,7 +59,18 @@ function describePrice(price) {
 }
 
 // Preço do link de pagamento (quando informado) ou de STRIPE_PRICE_ID.
+// Guardado em memória por 5 minutos: /price é público e não deve virar um
+// jeito de gastar a cota da API do Stripe.
+const priceCache = new Map();
 async function getPrice(link) {
+  const cached = priceCache.get(link);
+  if (cached && Date.now() - cached.at < 5 * 60e3) return cached.price;
+  const price = await fetchPrice(link);
+  priceCache.set(link, { at: Date.now(), price });
+  return price;
+}
+
+async function fetchPrice(link) {
   if (link) {
     const links = await stripe().paymentLinks.list({ limit: 100 });
     const found = links.data.find((l) => l.url === link);

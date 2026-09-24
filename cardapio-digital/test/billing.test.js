@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startHarness } from './stripe-harness.js';
+import { sha256 } from '../server/security.js';
 
 // Sem link de pagamento: o sistema cria a sessão de checkout pelo preço.
 const h = await startHarness({ STRIPE_PAYMENT_LINK: '' });
@@ -80,7 +81,7 @@ test('a função do Stripe só age com código válido, de uso único', async ()
 
   const { id } = await db.one(`SELECT id FROM cardapio.restaurants ORDER BY id LIMIT 1`);
   const token = 'b'.repeat(64);
-  await db.query(`INSERT INTO cardapio.stripe_tokens (token, restaurant_id, purpose, expires_at) VALUES ($1, $2, 'status', now() + interval '1 minute')`, [token, id]);
+  await db.query(`INSERT INTO cardapio.stripe_tokens (token, restaurant_id, purpose, expires_at) VALUES ($1, $2, 'status', now() + interval '1 minute')`, [sha256(token), id]);
   assert.equal((await call('status', { token })).status, 200);
   assert.equal((await call('status', { token })).status, 401, 'o mesmo código não vale duas vezes');
 });

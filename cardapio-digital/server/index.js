@@ -4,69 +4,80 @@ import process from 'node:process';
 import { Buffer } from 'node:buffer';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { db, databaseUrl, describeDatabaseUrl } from './db.js';
+import { db } from './db.js';
 import * as auth from './auth.js';
 import * as payments from './payments.js';
 import * as billing from './billing.js';
-import { ON_EDGE, siteUrl } from './config.js';
+import { siteUrl } from './config.js';
+import {
+  clientIp, rateLimit, rateHit, rateCount, rateReset, encryptSecret, safeImageUrl, detectImageType, audit,
+} from './security.js';
 
 const app = express();
 app.set('trust proxy', true);
+app.disable('x-powered-by');
 
-function databaseHint(err) {
-  const msg = String(err.message);
-  if (/password authentication failed/i.test(msg)) return 'Senha do banco incorreta.';
-  if (/Tenant or user not found/i.test(msg)) return 'Usuário ou servidor do banco errado.';
-  if (/ENOTFOUND|getaddrinfo/i.test(msg)) return 'Endereço do servidor do banco não encontrado.';
-  if (/timeout|ETIMEDOUT|ENETUNREACH/i.test(msg)) return 'O servidor do banco não respondeu.';
-  return 'Veja os logs da função para mais detalhes.';
-}
+// Cabeçalhos de segurança em todas as respostas da API. Respostas de API não
+// vão para cache (exceto imagens, que definem o próprio cache).
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'X-Frame-Options': 'DENY',
+    'Cross-Origin-Resource-Policy': 'same-site',
+    'Cache-Control': 'no-store',
+  });
+  next();
+});
 
 // Muda a cada atualização, para conferir se o deploy novo está no ar.
-const APP_VERSION = '2026-09-24.11';
+const APP_VERSION = '2026-09-24.12';
 
-// Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
+// Verificação de saúde pública: diz só se está funcionando. Detalhes do erro
+// ficam apenas nos logs do servidor.
 app.get('/api/health', async (req, res) => {
-  const checks = {
-    versao: APP_VERSION,
-    servidor: ON_EDGE ? 'supabase-edge' : 'node',
-    stripe_configured: billing.enabled(),
-  };
   try {
     await db.query('SELECT 1 FROM cardapio.restaurants LIMIT 1');
-    res.json({ ok: true, ...checks, database: 'ok' });
+    res.json({ ok: true, versao: APP_VERSION });
   } catch (err) {
     console.error('Health check:', err);
-    const shown = databaseUrl() ? describeDatabaseUrl(databaseUrl()) : null;
-    res.status(503).json({
-      ok: false,
-      ...checks,
-      database: `erro ao conectar: ${String(err.message).slice(0, 240)}`,
-      database_url_lida: shown || 'formato inválido',
-      dica: databaseHint(err, shown),
-    });
+    res.status(503).json({ ok: false, versao: APP_VERSION });
   }
 });
 
 // Upload de fotos: o navegador já envia a imagem reduzida (JPEG/PNG/WebP em
 // base64). Registrado antes do express.json() geral por causa do tamanho.
-const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-app.post('/api/admin/images', express.json({ limit: '4mb' }), auth.requireAuth, async (req, res) => {
-  const match = /^data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.data_url || ''));
-  if (!match || !IMAGE_TYPES.includes(match[1])) throw new HttpError(400, 'Envie uma imagem JPG, PNG ou WebP.');
-  const data = Buffer.from(match[2], 'base64');
-  if (data.length > 2 * 1024 * 1024) throw new HttpError(413, 'Imagem muito grande (máximo 2 MB).');
-  const id = crypto.randomUUID();
-  await db.query('INSERT INTO cardapio.images (id, restaurant_id, content_type, data) VALUES ($1, $2, $3, $4)',
-    [id, req.restaurant.id, match[1], data]);
-  res.status(201).json({ url: `/api/img/${id}` });
-});
+// O tipo é conferido pelos bytes do arquivo, não pelo que o navegador declara.
+const MAX_IMAGES_PER_RESTAURANT = 500;
+app.post('/api/admin/images',
+  express.json({ limit: '4mb' }),
+  auth.requireAuth,
+  auth.blockReadOnly,
+  rateLimit('upload', 60, 60 * 60e3, (req) => `r${req.restaurant.id}`),
+  async (req, res) => {
+    const match = /^data:image\/[a-z]+;base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.data_url || ''));
+    if (!match) throw new HttpError(400, 'Envie uma imagem JPG, PNG ou WebP.');
+    const data = Buffer.from(match[1], 'base64');
+    if (data.length > 2 * 1024 * 1024) throw new HttpError(413, 'Imagem muito grande (máximo 2 MB).');
+    const type = detectImageType(data);
+    if (!type) throw new HttpError(400, 'Envie uma imagem JPG, PNG ou WebP.');
+    const { count } = await db.one('SELECT COUNT(*)::int AS count FROM cardapio.images WHERE restaurant_id = $1', [req.restaurant.id]);
+    if (count >= MAX_IMAGES_PER_RESTAURANT) throw new HttpError(409, 'Limite de fotos atingido.');
+    const id = crypto.randomUUID();
+    await db.query('INSERT INTO cardapio.images (id, restaurant_id, content_type, data) VALUES ($1, $2, $3, $4)',
+      [id, req.restaurant.id, type, data]);
+    res.status(201).json({ url: `/api/img/${id}` });
+  });
 
 app.get('/api/img/:id', async (req, res) => {
   if (!/^[0-9a-f-]{36}$/.test(req.params.id)) throw new HttpError(404, 'Imagem não encontrada.');
   const img = await db.one('SELECT content_type, data FROM cardapio.images WHERE id = $1', [req.params.id]);
   if (!img) throw new HttpError(404, 'Imagem não encontrada.');
-  res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  res.set({
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'Content-Security-Policy': "default-src 'none'; sandbox",
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+  });
   res.type(img.content_type).send(Buffer.from(img.data));
 });
 
@@ -105,9 +116,19 @@ function str(v, max = 500) {
   return typeof v === 'string' ? v.trim().slice(0, max) : '';
 }
 
-function cents(v) {
+// Valores em centavos, com teto (padrão R$ 100.000) para evitar estouro de
+// inteiro no banco e valores absurdos.
+const MAX_CENTS = 10_000_000;
+function cents(v, max = MAX_CENTS) {
   const n = Math.round(Number(v));
-  return Number.isFinite(n) && n >= 0 ? n : 0;
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : 0;
+}
+
+// URL de imagem validada no servidor (https ou foto enviada ao sistema).
+function imageUrl(v, field) {
+  const url = safeImageUrl(v);
+  if (url === null) throw new HttpError(400, `Link de imagem inválido em "${field}". Use um endereço https:// ou envie a foto.`);
+  return url;
 }
 
 function bool(v) { return v ? 1 : 0; }
@@ -133,24 +154,6 @@ async function uniqueSlug(q, base) {
 }
 
 const baseUrl = siteUrl;
-
-// Limitador simples em memória (por IP + chave). Em ambiente serverless vale
-// por instância, o que ainda segura abusos mais grosseiros.
-const hits = new Map();
-function rateLimit(key, max, windowMs) {
-  return (req, res, next) => {
-    const id = `${key}:${req.ip}`;
-    const now = Date.now();
-    const entry = hits.get(id);
-    if (!entry || entry.reset < now) {
-      if (hits.size > 10000) hits.clear();
-      hits.set(id, { count: 1, reset: now + windowMs });
-      return next();
-    }
-    if (++entry.count > max) return res.status(429).json({ error: 'Muitas tentativas. Aguarde um pouco.' });
-    next();
-  };
-}
 
 function subscriptionActive(r) {
   if (r.plan === 'suspended') return false;
@@ -239,14 +242,28 @@ async function applyPaymentResult(orderId, status, paymentId) {
 
 // ---------- autenticação ----------
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const LOGIN_MAX_FAILS_PER_EMAIL = 5;   // por 15 minutos
+const LOGIN_MAX_FAILS_PER_IP = 30;     // por 15 minutos
+const LOGIN_WINDOW = 15 * 60e3;
+
+function validNewPassword(password) {
+  if (typeof password !== 'string' || password.length < 8) {
+    throw new HttpError(400, 'A senha precisa ter pelo menos 8 caracteres.');
+  }
+  if (password.length > auth.MAX_PASSWORD_LENGTH) {
+    throw new HttpError(400, `A senha pode ter no máximo ${auth.MAX_PASSWORD_LENGTH} caracteres.`);
+  }
+  return password;
+}
+
 app.post('/api/auth/signup', rateLimit('signup', 10, 60 * 60e3), async (req, res) => {
   const name = str(req.body.name, 100);
   const email = str(req.body.email, 200).toLowerCase();
-  const password = typeof req.body.password === 'string' ? req.body.password : '';
   const restaurantName = str(req.body.restaurantName, 100);
   if (!name || !restaurantName) throw new HttpError(400, 'Informe seu nome e o nome do estabelecimento.');
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'E-mail inválido.');
-  if (password.length < 8) throw new HttpError(400, 'A senha precisa ter pelo menos 8 caracteres.');
+  if (!EMAIL_RE.test(email)) throw new HttpError(400, 'E-mail inválido.');
+  const password = validNewPassword(req.body.password);
   if (await db.one('SELECT 1 FROM cardapio.users WHERE email = $1', [email])) throw new HttpError(409, 'Este e-mail já está cadastrado.');
 
   const userId = await db.tx(async (q) => {
@@ -256,48 +273,86 @@ app.post('/api/auth/signup', rateLimit('signup', 10, 60 * 60e3), async (req, res
       [u.id, await uniqueSlug(q, slugify(restaurantName)), restaurantName]);
     return u.id;
   });
+  await audit(req, 'signup', { actorId: userId, target: email });
   const token = await auth.createSession(req, res, userId);
   res.status(201).json({ ok: true, token });
 });
 
-app.post('/api/auth/login', rateLimit('login', 20, 15 * 60e3), async (req, res) => {
+// Login com proteção contra força bruta: no máximo 5 erros por e-mail e 30 por
+// IP a cada 15 minutos (contados no banco). A resposta é a mesma para e-mail
+// inexistente e senha errada, inclusive no tempo de resposta.
+app.post('/api/auth/login', async (req, res) => {
   const email = str(req.body.email, 200).toLowerCase();
   const password = typeof req.body.password === 'string' ? req.body.password : '';
-  const user = await db.one('SELECT * FROM cardapio.users WHERE email = $1', [email]);
+  const emailBucket = `login-fail:${email}`;
+  const ipBucket = `login-fail-ip:${clientIp(req)}`;
+  if (await rateCount(emailBucket) >= LOGIN_MAX_FAILS_PER_EMAIL || await rateCount(ipBucket) >= LOGIN_MAX_FAILS_PER_IP) {
+    await audit(req, 'login_blocked', { target: email });
+    res.set('Retry-After', String(LOGIN_WINDOW / 1000));
+    throw new HttpError(429, 'Muitas tentativas de login. Aguarde 15 minutos e tente de novo.');
+  }
+
+  const user = EMAIL_RE.test(email) && await db.one('SELECT * FROM cardapio.users WHERE email = $1', [email]);
+  if (!user) auth.dummyVerify(password);
   if (!user || !auth.verifyPassword(password, user.password_hash)) {
+    await rateHit(emailBucket, LOGIN_WINDOW);
+    await rateHit(ipBucket, LOGIN_WINDOW);
+    await audit(req, 'login_failed', { actorId: user?.id ?? null, target: email });
     throw new HttpError(401, 'E-mail ou senha incorretos.');
   }
-  const token = await auth.createSession(req, res, user.id);
+
+  await rateReset(emailBucket);
+  // Hash antigo (mais fraco): atualiza para os parâmetros atuais.
+  if (auth.needsRehash(user.password_hash)) {
+    await db.query('UPDATE cardapio.users SET password_hash = $1 WHERE id = $2', [auth.hashPassword(password), user.id]);
+  }
   // Lembrou a senha: o pedido de nova senha não é mais necessário.
   if (user.password_reset_requested_at) {
     await db.query('UPDATE cardapio.users SET password_reset_requested_at = NULL WHERE id = $1', [user.id]);
   }
+  // Limpeza de sessões e códigos vencidos.
+  await db.query('DELETE FROM cardapio.sessions WHERE expires_at < now()');
+  await db.query(`DELETE FROM cardapio.stripe_tokens WHERE expires_at < now() - interval '1 day'`);
+  await audit(req, 'login_ok', { actorId: user.id, target: email });
+  const token = await auth.createSession(req, res, user.id);
   res.json({ ok: true, token });
 });
 
 app.post('/api/auth/logout', async (req, res) => {
-  await auth.destroySession(req, res);
+  await auth.destroySession(req);
   res.json({ ok: true });
 });
 
 // Troca de senha pelo próprio usuário (logado). Encerra as outras sessões.
-app.post('/api/auth/change-password', rateLimit('change-password', 10, 15 * 60e3), auth.requireAuth, async (req, res) => {
-  const current = typeof req.body.current_password === 'string' ? req.body.current_password : '';
-  const next = typeof req.body.new_password === 'string' ? req.body.new_password : '';
-  const user = await db.one('SELECT password_hash FROM cardapio.users WHERE id = $1', [req.user.id]);
-  if (!auth.verifyPassword(current, user.password_hash)) throw new HttpError(400, 'Senha atual incorreta.');
-  if (next.length < 8) throw new HttpError(400, 'A nova senha precisa ter pelo menos 8 caracteres.');
-  await db.query('UPDATE cardapio.users SET password_hash = $1 WHERE id = $2', [auth.hashPassword(next), req.user.id]);
-  await db.query('DELETE FROM cardapio.sessions WHERE user_id = $1 AND token <> $2', [req.user.id, auth.currentToken(req)]);
-  res.json({ ok: true });
-});
+app.post('/api/auth/change-password',
+  auth.requireAuth,
+  auth.blockReadOnly,
+  rateLimit('change-password', 10, 15 * 60e3, (req) => `u${req.user.id}`),
+  async (req, res) => {
+    const current = typeof req.body.current_password === 'string' ? req.body.current_password : '';
+    const next = validNewPassword(req.body.new_password);
+    const user = await db.one('SELECT password_hash FROM cardapio.users WHERE id = $1', [req.user.id]);
+    if (!auth.verifyPassword(current, user.password_hash)) {
+      await audit(req, 'password_change_failed', { actorId: req.user.id });
+      throw new HttpError(400, 'Senha atual incorreta.');
+    }
+    await db.query('UPDATE cardapio.users SET password_hash = $1 WHERE id = $2', [auth.hashPassword(next), req.user.id]);
+    await auth.destroyOtherSessions(req.user.id, auth.currentToken(req));
+    await audit(req, 'password_changed', { actorId: req.user.id });
+    res.json({ ok: true });
+  });
 
 // "Esqueci minha senha": registra o pedido para o admin ver em Clientes do SaaS.
 // Responde sempre igual, para não revelar quais e-mails têm conta.
 app.post('/api/public/password-request', rateLimit('password-request', 5, 60 * 60e3), async (req, res) => {
   const email = str(req.body?.email, 200).toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Informe um e-mail válido.');
-  await db.query('UPDATE cardapio.users SET password_reset_requested_at = now() WHERE email = $1', [email]);
+  if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Informe um e-mail válido.');
+  if (await rateHit(`password-request-email:${email}`, 60 * 60e3) <= 3) {
+    const updated = await db.one(
+      'UPDATE cardapio.users SET password_reset_requested_at = now() WHERE email = $1 RETURNING id', [email]
+    );
+    if (updated) await audit(req, 'password_reset_requested', { actorId: updated.id, target: email });
+  }
   res.json({ ok: true });
 });
 
@@ -323,7 +378,7 @@ app.get('/api/auth/me', auth.requireAuth, async (req, res) => {
 // ---------- painel do restaurante ----------
 
 const admin = express.Router();
-admin.use(auth.requireAuth);
+admin.use(auth.requireAuth, auth.blockReadOnly);
 
 admin.put('/restaurant', async (req, res) => {
   const b = req.body;
@@ -333,14 +388,22 @@ admin.put('/restaurant', async (req, res) => {
     throw new HttpError(409, 'Esse endereço de cardápio já está em uso.');
   }
   const color = /^#[0-9a-fA-F]{6}$/.test(b.primary_color) ? b.primary_color : r.primary_color;
-  const mpToken = b.mp_access_token === undefined ? r.mp_access_token : str(b.mp_access_token, 200);
+  // Token do Mercado Pago: formato conferido e guardado cifrado.
+  let mpToken = r.mp_access_token;
+  if (b.mp_access_token !== undefined) {
+    const raw = str(b.mp_access_token, 300);
+    if (raw && !/^(APP_USR|TEST)-[A-Za-z0-9-]{10,}$/.test(raw)) {
+      throw new HttpError(400, 'Access Token do Mercado Pago inválido (começa com APP_USR- ou TEST-).');
+    }
+    mpToken = encryptSecret(raw);
+  }
   const updated = await db.one(
     `UPDATE cardapio.restaurants SET slug=$1, name=$2, description=$3, logo_url=$4, cover_url=$5, primary_color=$6,
      whatsapp=$7, address=$8, opening_hours=$9, is_open=$10, delivery_enabled=$11, pickup_enabled=$12, table_enabled=$13,
      delivery_fee_cents=$14, min_order_cents=$15, accept_pix=$16, accept_card_online=$17, accept_on_delivery=$18,
      mp_access_token=$19 WHERE id=$20 RETURNING *`,
     [
-      slug, str(b.name, 100) || r.name, str(b.description, 300), str(b.logo_url, 500), str(b.cover_url, 500), color,
+      slug, str(b.name, 100) || r.name, str(b.description, 300), imageUrl(b.logo_url, 'logo'), imageUrl(b.cover_url, 'capa'), color,
       str(b.whatsapp, 20).replace(/\D/g, ''), str(b.address, 200), str(b.opening_hours, 200),
       bool(b.is_open), bool(b.delivery_enabled), bool(b.pickup_enabled), bool(b.table_enabled),
       cents(b.delivery_fee_cents), cents(b.min_order_cents),
@@ -348,6 +411,9 @@ admin.put('/restaurant', async (req, res) => {
       mpToken, r.id,
     ]
   );
+  if (b.mp_access_token !== undefined) {
+    await audit(req, 'mp_token_changed', { actorId: req.user.id, target: `restaurant:${r.id}`, meta: { removed: !mpToken } });
+  }
   res.json(adminRestaurant(updated));
 });
 
@@ -390,7 +456,8 @@ async function saveProduct(req, productId) {
   const name = str(b.name, 100);
   if (!name) throw new HttpError(400, 'Informe o nome do produto.');
   const price = cents(b.price_cents);
-  if (price <= 0) throw new HttpError(400, 'Informe um preço válido.');
+  if (price <= 0 || Number(b.price_cents) > MAX_CENTS) throw new HttpError(400, 'Informe um preço válido.');
+  const image = imageUrl(b.image_url, 'foto do produto');
   let categoryId = Number(b.category_id) || null;
   if (categoryId && !Number.isInteger(categoryId)) categoryId = null;
   if (categoryId && !await db.one('SELECT 1 FROM cardapio.categories WHERE id = $1 AND restaurant_id = $2', [categoryId, rid])) {
@@ -406,7 +473,7 @@ async function saveProduct(req, productId) {
       const updated = await q.one(
         `UPDATE cardapio.products SET category_id=$1, name=$2, description=$3, price_cents=$4, image_url=$5, available=$6
          WHERE id=$7 AND restaurant_id=$8 RETURNING id`,
-        [categoryId, name, str(b.description, 500), price, str(b.image_url, 500), bool(b.available), id, rid]
+        [categoryId, name, str(b.description, 500), price, image, bool(b.available), id, rid]
       );
       if (!updated) throw new HttpError(404, 'Produto não encontrado.');
       await q.query('DELETE FROM cardapio.product_addons WHERE product_id = $1', [id]);
@@ -415,7 +482,7 @@ async function saveProduct(req, productId) {
         `INSERT INTO cardapio.products (restaurant_id, category_id, name, description, price_cents, image_url, available, position)
          VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT COALESCE(MAX(position), 0) + 1 FROM cardapio.products WHERE restaurant_id = $1))
          RETURNING id`,
-        [rid, categoryId, name, str(b.description, 500), price, str(b.image_url, 500), bool(b.available ?? true)]
+        [rid, categoryId, name, str(b.description, 500), price, image, bool(b.available ?? true)]
       )).id;
     }
     for (const a of addons) {
@@ -549,7 +616,10 @@ app.use('/api/admin', admin);
 
 const superadmin = express.Router();
 superadmin.use(auth.requireAuth, async (req, res, next) => {
-  if (!await isSuperadmin(req.user.email)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!await isSuperadmin(req.user.email)) {
+    await audit(req, 'admin_access_denied', { actorId: req.user.id, target: req.path });
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
   next();
 });
 
@@ -573,6 +643,7 @@ superadmin.patch('/restaurants/:id', async (req, res) => {
      WHERE id = $3`,
     [plan, extraDays, intId(req.params.id)]
   );
+  await audit(req, 'plan_changed', { actorId: req.user.id, target: `restaurant:${req.params.id}`, meta: { plan, extraDays } });
   res.json({ ok: true });
 });
 
@@ -585,10 +656,11 @@ superadmin.post('/restaurants/:id/reset-password', async (req, res) => {
   );
   if (!owner) throw new HttpError(404, 'Loja não encontrada.');
   const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
-  const password = Array.from(crypto.randomBytes(10), (b) => alphabet[b % alphabet.length]).join('');
+  const password = Array.from({ length: 12 }, () => alphabet[crypto.randomInt(alphabet.length)]).join('');
   await db.query('UPDATE cardapio.users SET password_hash = $1, password_reset_requested_at = NULL WHERE id = $2',
     [auth.hashPassword(password), owner.id]);
   await db.query('DELETE FROM cardapio.sessions WHERE user_id = $1', [owner.id]);
+  await audit(req, 'password_reset_by_admin', { actorId: req.user.id, target: owner.email });
   res.json({ password, email: owner.email, whatsapp: owner.whatsapp });
 });
 
@@ -665,7 +737,7 @@ app.post('/api/public/r/:slug/orders', rateLimit('order', 30, 15 * 60e3), async 
     if (!p) throw new HttpError(409, 'Um dos produtos do carrinho não está mais disponível.');
     const qty = Number(raw.quantity);
     if (!Number.isInteger(qty) || qty < 1 || qty > 99) throw new HttpError(400, 'Quantidade inválida.');
-    const addonIds = [...new Set(Array.isArray(raw.addon_ids) ? raw.addon_ids.map(Number) : [])];
+    const addonIds = [...new Set(Array.isArray(raw.addon_ids) ? raw.addon_ids.slice(0, 30).map(Number) : [])];
     const addons = addonIds.map((aid) => {
       const a = addonRows.find((x) => x.id === aid && x.product_id === p.id);
       if (!a) throw new HttpError(409, 'Um adicional selecionado não está mais disponível.');
@@ -679,6 +751,7 @@ app.post('/api/public/r/:slug/orders', rateLimit('order', 30, 15 * 60e3), async 
   if (subtotal < r.min_order_cents) throw new HttpError(400, 'O pedido não atingiu o valor mínimo.');
   const deliveryFee = fulfillment === 'delivery' ? r.delivery_fee_cents : 0;
   const total = subtotal + deliveryFee;
+  if (total > 100 * MAX_CENTS) throw new HttpError(400, 'Valor do pedido acima do permitido.');
   const changeFor = method === 'cash' ? cents(b.change_for_cents) : 0;
   const online = method === 'pix' || method === 'card_online';
 
@@ -786,6 +859,8 @@ app.post('/api/internal/stripe-sync', rateLimit('stripe-sync', 120, 15 * 60e3), 
     : email && await db.one(
       'SELECT r.* FROM cardapio.restaurants r JOIN cardapio.users u ON u.id = r.owner_id WHERE u.email = $1', [email]);
   const sessionId = String(req.body?.checkout_session_id || '');
+  // Este endereço é público: no máximo 30 avisos por loja a cada 15 minutos.
+  if (r && await rateHit(`stripe-sync-r:${r.id}`, 15 * 60e3) > 30) return res.status(429).json({ error: 'Muitas tentativas.' });
   if (r && /^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
     try {
       await billing.syncSubscription(r, { checkoutSessionId: sessionId });
@@ -830,11 +905,15 @@ if (PUBLIC_DIR) {
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
 
+// Erros: mensagem segura para o cliente; detalhes só no log, com um código
+// para localizar o registro.
 app.use((err, req, res, next) => {
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
   if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON inválido' });
-  console.error(err);
-  res.status(500).json({ error: 'Erro interno' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Conteúdo grande demais.' });
+  const id = crypto.randomUUID().slice(0, 8);
+  console.error(`[erro ${id}] ${req.method} ${req.path}:`, err);
+  res.status(500).json({ error: 'Erro interno', codigo: id });
 });
 
 export default app;

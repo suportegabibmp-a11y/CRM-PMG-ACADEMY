@@ -1,4 +1,4 @@
-// Cria uma hamburgueria de demonstração: login demo@cardapio.app / demo12345
+// Cria uma hamburgueria de demonstração (conta somente leitura): login demo@cardapio.app / demo12345
 // Usa o mesmo banco do app (DATABASE_URL do Supabase, se definido).
 import process from 'node:process';
 import { db } from './db.js';
@@ -13,7 +13,10 @@ async function main() {
     return;
   }
   await db.tx(async (q) => {
-    const { id: uid } = await q.one('INSERT INTO cardapio.users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id',
+    // Conta de demonstração é somente leitura: qualquer um pode entrar para
+    // conhecer o painel, mas ninguém consegue alterar a loja de exemplo.
+    const { id: uid } = await q.one(
+      'INSERT INTO cardapio.users (name, email, password_hash, read_only) VALUES ($1, $2, $3, true) RETURNING id',
       ['Demo', EMAIL, hashPassword('demo12345')]);
     const { id: rid } = await q.one(
       `INSERT INTO cardapio.restaurants (owner_id, slug, name, description, cover_url, primary_color, whatsapp, address,

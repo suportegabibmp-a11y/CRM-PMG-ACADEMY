@@ -4,16 +4,26 @@
 import crypto from 'node:crypto';
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
+import { ON_EDGE } from './config.js';
+import { decryptSecret } from './security.js';
 
 const MP_API = 'https://api.mercadopago.com';
 
+// Pagamento simulado ("Simular pagamento aprovado") só existe quando ligado
+// explicitamente (ALLOW_DEMO_PAYMENTS=true) ou rodando localmente. Nunca no
+// servidor publicado por padrão: senão um cliente marcaria pedidos como pagos.
 export function demoPaymentsAllowed() {
   if (process.env.ALLOW_DEMO_PAYMENTS) return process.env.ALLOW_DEMO_PAYMENTS === 'true';
-  return process.env.NODE_ENV !== 'production';
+  return !ON_EDGE && process.env.NODE_ENV !== 'production';
+}
+
+// Token do Mercado Pago do restaurante, guardado cifrado no banco.
+function mpToken(restaurant) {
+  return decryptSecret(restaurant.mp_access_token);
 }
 
 export function providerFor(restaurant) {
-  if (restaurant.mp_access_token) return 'mercadopago';
+  if (mpToken(restaurant)) return 'mercadopago';
   if (demoPaymentsAllowed()) return 'demo';
   return null;
 }
@@ -54,7 +64,7 @@ export async function createPix({ restaurant, order, baseUrl }) {
     return { provider, ref: `demo-${order.id}`, pixCode: code, pixQrBase64: '' };
   }
   const notificationUrl = `${baseUrl}/api/webhooks/mercadopago/${restaurant.id}`;
-  const payment = await mpFetch(restaurant.mp_access_token, '/v1/payments', {
+  const payment = await mpFetch(mpToken(restaurant), '/v1/payments', {
     method: 'POST',
     idempotencyKey: `pix-${order.id}`,
     body: {
@@ -93,7 +103,7 @@ export async function createCardCheckout({ restaurant, order, items, baseUrl }) 
   if (order.delivery_fee_cents > 0) {
     mpItems.push({ id: 'entrega', title: 'Taxa de entrega', quantity: 1, unit_price: order.delivery_fee_cents / 100, currency_id: 'BRL' });
   }
-  const pref = await mpFetch(restaurant.mp_access_token, '/checkout/preferences', {
+  const pref = await mpFetch(mpToken(restaurant), '/checkout/preferences', {
     method: 'POST',
     idempotencyKey: `card-${order.id}`,
     body: {
@@ -113,9 +123,9 @@ export async function createCardCheckout({ restaurant, order, items, baseUrl }) 
 // Consulta o Mercado Pago e devolve { status, paymentId } do pagamento mais
 // relevante do pedido (aprovado tem prioridade), ou null se não houver nenhum.
 export async function fetchPaymentStatus({ restaurant, order }) {
-  if (order.payment_provider !== 'mercadopago' || !restaurant.mp_access_token) return null;
+  if (order.payment_provider !== 'mercadopago' || !mpToken(restaurant)) return null;
   const search = await mpFetch(
-    restaurant.mp_access_token,
+    mpToken(restaurant),
     `/v1/payments/search?external_reference=${encodeURIComponent(order.id)}&sort=date_created&criteria=desc`
   );
   const results = search.results || [];
@@ -128,7 +138,7 @@ export async function fetchPaymentStatus({ restaurant, order }) {
 }
 
 export async function fetchPaymentById({ restaurant, paymentId }) {
-  const p = await mpFetch(restaurant.mp_access_token, `/v1/payments/${encodeURIComponent(paymentId)}`);
+  const p = await mpFetch(mpToken(restaurant), `/v1/payments/${encodeURIComponent(paymentId)}`);
   return {
     orderId: p.external_reference,
     status: mapMpStatus(p.status),

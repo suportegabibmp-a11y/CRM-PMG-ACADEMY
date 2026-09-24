@@ -40,3 +40,16 @@
   from = "/admin"
   to = "/admin.html"
   status = 200
+
+# Cabeçalhos de segurança de todas as páginas.
+# CSP: só scripts do próprio site (nada embutido no HTML); imagens de https,
+# data: e blob: (prévia de fotos); nenhuma página pode ser colocada em iframe.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+    Cross-Origin-Opener-Policy = "same-origin"

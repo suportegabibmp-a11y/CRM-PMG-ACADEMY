@@ -21,10 +21,11 @@ test.after(() => server.close());
 // navegador faz quando a API passa pelo proxy da Netlify.
 function client() {
   let token = '';
+  const ip = `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
   return async (path, { method = 'GET', body } = {}) => {
     const res = await fetch(base + path, {
       method,
-      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+      headers: { 'Content-Type': 'application/json', 'x-nf-client-connection-ip': ip, ...(token && { Authorization: `Bearer ${token}` }) },
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => null);
@@ -169,7 +170,8 @@ test('login e e-mail duplicado', async () => {
 test('upload de foto e diagnóstico', async () => {
   const health = await client()('/api/health');
   assert.equal(health.status, 200);
-  assert.equal(health.body.database, 'ok');
+  assert.equal(health.body.ok, true);
+  assert.deepEqual(Object.keys(health.body).sort(), ['ok', 'versao'], 'diagnóstico público sem detalhes internos');
 
   const { c } = await setupRestaurant('Fotos', 'f@test.com');
   // PNG 1x1
@@ -206,7 +208,7 @@ test('senha: trocar, esqueci (admin gera temporária) e sessões antigas encerra
   const reset = await admin(`/api/superadmin/restaurants/${rid}/reset-password`, { method: 'POST' });
   assert.equal(reset.status, 200);
   assert.equal(reset.body.email, 'dono-senha@test.com');
-  assert.match(reset.body.password, /^[a-z2-9]{10}$/);
+  assert.match(reset.body.password, /^[a-z2-9]{12}$/);
 
   assert.equal((await c('/api/auth/me')).status, 401, 'a sessão antiga cai');
   assert.equal((await client()('/api/auth/login', { method: 'POST', body: { email: 'dono-senha@test.com', password: 'nova-senha-1' } })).status, 401);
