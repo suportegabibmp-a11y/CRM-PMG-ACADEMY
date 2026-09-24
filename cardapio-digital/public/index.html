@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cardápio Digital · Pedidos e pagamentos online</title>
+  <meta name="description" content="Cardápio digital para restaurantes, hamburguerias e deliveries, com pedidos e pagamento online por PIX e cartão.">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+    header.nav { display: flex; align-items: center; gap: 12px; padding: 18px 0; }
+    .brand { font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+    .brand i { width: 30px; height: 30px; border-radius: 9px; background: var(--brand); display: grid; place-items: center; color: #fff; font-style: normal; }
+    .hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 40px; align-items: center; padding: 40px 0 60px; }
+    @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.1rem); letter-spacing: -.02em; }
+    .hero h1 em { font-style: normal; color: var(--brand); }
+    .lead { font-size: 1.15rem; color: var(--muted); max-width: 520px; }
+    .auth { box-shadow: var(--shadow); }
+    .switch { display: flex; background: var(--surface-2); border-radius: 10px; padding: 4px; margin-bottom: 18px; }
+    .switch button { flex: 1; border: 0; background: none; padding: 9px; border-radius: 8px; font: inherit; font-weight: 700; color: var(--muted); cursor: pointer; }
+    .switch button.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding-bottom: 60px; }
+    @media (max-width: 860px) { .features { grid-template-columns: 1fr; } }
+    .features .card h3 { font-size: 1.05rem; }
+    .features .ico { font-size: 1.6rem; margin-bottom: 8px; }
+    .pricing { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 720px; margin: 0 auto 60px; }
+    @media (max-width: 640px) { .pricing { grid-template-columns: 1fr; } }
+    .price { font-size: 2rem; font-weight: 800; }
+    .pricing ul { padding-left: 18px; color: var(--muted); }
+    .pricing .card.hl { border: 2px solid var(--brand); }
+    footer { text-align: center; padding: 30px 16px; color: var(--muted); font-size: .9rem; }
+    .checks { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 8px; }
+    .checks li::before { content: '✓ '; color: var(--ok); font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="nav">
+      <div class="brand"><i>🍔</i>Cardápio Digital</div>
+      <div class="spacer"></div>
+      <a class="btn ghost" href="/m/burger-house">Ver exemplo</a>
+      <a class="btn primary hidden" id="go-admin" href="/admin">Ir para o painel</a>
+    </header>
+
+    <section class="hero">
+      <div>
+        <h1>Seu cardápio online, com <em>pedidos e pagamento</em> direto pelo celular.</h1>
+        <p class="lead">Para restaurantes, hamburguerias, pizzarias e deliveries. O cliente escolhe, paga por PIX ou cartão e você recebe o pedido na hora no painel — sem comissão por pedido.</p>
+        <ul class="checks">
+          <li>Link próprio e QR Code para as mesas</li>
+          <li>PIX e cartão pelo Mercado Pago, com o dinheiro direto na sua conta</li>
+          <li>Entrega, retirada e pedidos na mesa</li>
+          <li>Painel de pedidos em tempo real com alerta sonoro</li>
+        </ul>
+      </div>
+
+      <div class="card auth" id="auth">
+        <div class="switch" role="tablist">
+          <button class="active" data-mode="signup" role="tab">Criar conta grátis</button>
+          <button data-mode="login" role="tab">Entrar</button>
+        </div>
+        <form id="form" novalidate>
+          <div class="signup-only">
+            <div class="field"><label for="restaurantName">Nome do estabelecimento</label><input id="restaurantName" name="restaurantName" placeholder="Ex.: Burger do Zé"></div>
+            <div class="field"><label for="name">Seu nome</label><input id="name" name="name" autocomplete="name"></div>
+          </div>
+          <div class="field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email"></div>
+          <div class="field"><label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8"><div class="hint signup-only">Mínimo de 8 caracteres</div></div>
+          <button class="btn primary block lg" id="submit">Começar teste grátis de 14 dias</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="card"><div class="ico">📱</div><h3>Cardápio bonito e rápido</h3><p class="muted">Fotos, categorias, busca e adicionais (bacon extra, queijo, etc.). Funciona em qualquer celular, sem instalar app.</p></div>
+      <div class="card"><div class="ico">⚡</div><h3>Pagamento online</h3><p class="muted">PIX com QR Code e confirmação automática, cartão de crédito em até 12x, ou pagamento na entrega.</p></div>
+      <div class="card"><div class="ico">🔔</div><h3>Gestão de pedidos</h3><p class="muted">Receba, prepare e despache pelo painel. O cliente acompanha o status do pedido em tempo real.</p></div>
+      <div class="card"><div class="ico">🎨</div><h3>Sua marca</h3><p class="muted">Logo, capa e cor personalizados. Link próprio para Instagram, WhatsApp e Google.</p></div>
+      <div class="card"><div class="ico">📊</div><h3>Relatórios</h3><p class="muted">Faturamento do dia, semana e mês, e os produtos mais vendidos.</p></div>
+      <div class="card"><div class="ico">💬</div><h3>Integrado ao WhatsApp</h3><p class="muted">O cliente pode enviar o resumo do pedido direto para o seu WhatsApp.</p></div>
+    </section>
+
+    <section>
+      <h2 style="text-align:center">Planos simples, sem taxa por pedido</h2>
+      <p class="muted" style="text-align:center;margin-bottom:24px">Comece com 14 dias grátis. Sem cartão de crédito.</p>
+      <div class="pricing">
+        <div class="card"><h3>Básico</h3><div class="price">R$ 49<span class="small muted">/mês</span></div>
+          <ul><li>Cardápio ilimitado</li><li>Pedidos ilimitados</li><li>Pagamento na entrega</li><li>QR Code para mesas</li></ul></div>
+        <div class="card hl"><h3>Pro</h3><div class="price">R$ 89<span class="small muted">/mês</span></div>
+          <ul><li>Tudo do Básico</li><li>PIX e cartão online</li><li>Relatórios de vendas</li><li>Suporte prioritário</li></ul></div>
+      </div>
+    </section>
+  </div>
+  <footer>© Cardápio Digital</footer>
+
+  <script src="/common.js"></script>
+  <script>
+    let mode = 'signup';
+    const form = document.getElementById('form');
+    const submit = document.getElementById('submit');
+
+    function setMode(m) {
+      mode = m;
+      document.querySelectorAll('.switch button').forEach((b) => b.classList.toggle('active', b.dataset.mode === m));
+      document.querySelectorAll('.signup-only').forEach((el) => el.classList.toggle('hidden', m !== 'signup'));
+      document.getElementById('password').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
+      submit.textContent = m === 'signup' ? 'Começar teste grátis de 14 dias' : 'Entrar no painel';
+    }
+    document.querySelectorAll('.switch button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submit.disabled = true;
+      const body = Object.fromEntries(new FormData(form));
+      try {
+        await api(mode === 'signup' ? '/api/auth/signup' : '/api/auth/login', { method: 'POST', body });
+        location.href = '/admin';
+      } catch (err) {
+        toast(err.message, 'error');
+        submit.disabled = false;
+      }
+    });
+
+    // Já logado? Mostra o atalho para o painel.
+    api('/api/auth/me').then(() => document.getElementById('go-admin').classList.remove('hidden')).catch(() => {});
+  </script>
+</body>
+</html>
