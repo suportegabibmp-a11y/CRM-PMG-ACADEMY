@@ -14,7 +14,7 @@ const app = express();
 app.set('trust proxy', true);
 
 // Muda a cada atualização, para conferir se o deploy novo está no ar.
-const APP_VERSION = '2026-09-24.6';
+const APP_VERSION = '2026-09-24.7';
 
 // Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
 app.get('/api/health', async (req, res) => {
@@ -63,7 +63,8 @@ app.get('/api/img/:id', async (req, res) => {
 
 app.use(express.json({ limit: '200kb' }));
 
-const PUBLIC_DIR = fileURLToPath(new URL('../public', import.meta.url));
+// Páginas locais (só quando roda a partir dos arquivos; no Supabase quem serve é a Netlify).
+const PUBLIC_DIR = import.meta.url.startsWith('file:') ? fileURLToPath(new URL('../public', import.meta.url)) : null;
 
 // Superadmins: variável SUPERADMIN_EMAILS e/ou a configuração
 // "superadmin_emails" na tabela cardapio.settings.
@@ -748,10 +749,12 @@ app.post('/api/webhooks/mercadopago/:restaurantId', async (req, res) => {
 
 // ---------- páginas (em produção na Netlify, servidas como arquivos estáticos) ----------
 
-app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
-app.get('/m/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'menu.html')));
-app.get('/pedido/:id', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'order.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'admin.html')));
+if (PUBLIC_DIR) {
+  app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
+  app.get('/m/:slug', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'menu.html')));
+  app.get('/pedido/:id', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'order.html')));
+  app.get('/admin', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'admin.html')));
+}
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
 
