@@ -235,7 +235,10 @@ async function connectPostgres(url) {
     onnotice: () => {},
   });
   // O lock evita corrida quando várias funções iniciam ao mesmo tempo.
-  await sql.unsafe(`BEGIN; SELECT pg_advisory_xact_lock(727274); ${SCHEMA_SQL} COMMIT;`);
+  await sql.begin(async (tx) => {
+    await tx.unsafe('SELECT pg_advisory_xact_lock(727274)');
+    await tx.unsafe(SCHEMA_SQL);
+  });
   return {
     query: (text, params = []) => sql.unsafe(text, params),
     tx: (fn) => sql.begin((s) => fn({ query: (text, params = []) => s.unsafe(text, params) })),

@@ -13,8 +13,17 @@ import { ON_EDGE, siteUrl } from './config.js';
 const app = express();
 app.set('trust proxy', true);
 
+function databaseHint(err) {
+  const msg = String(err.message);
+  if (/password authentication failed/i.test(msg)) return 'Senha do banco incorreta.';
+  if (/Tenant or user not found/i.test(msg)) return 'Usuário ou servidor do banco errado.';
+  if (/ENOTFOUND|getaddrinfo/i.test(msg)) return 'Endereço do servidor do banco não encontrado.';
+  if (/timeout|ETIMEDOUT|ENETUNREACH/i.test(msg)) return 'O servidor do banco não respondeu.';
+  return 'Veja os logs da função para mais detalhes.';
+}
+
 // Muda a cada atualização, para conferir se o deploy novo está no ar.
-const APP_VERSION = '2026-09-24.7';
+const APP_VERSION = '2026-09-24.8';
 
 // Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
 app.get('/api/health', async (req, res) => {
