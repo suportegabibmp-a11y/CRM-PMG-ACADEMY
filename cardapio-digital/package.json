@@ -3,23 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "description": "SaaS de cardápio digital com pedidos e pagamento online (PIX e cartão via Mercado Pago)",
-  "main": "server/index.js",
+  "main": "server/start.js",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
+    "start": "node server/start.js",
+    "dev": "node --watch server/start.js",
     "seed": "node server/seed.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "express": "^5.2.1",
     "postgres": "^3.4.9",
-    "serverless-http": "^4.0.0",
     "stripe": "^22.6.2"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8"
-  }
+  },
+  "type": "module"
 }

@@ -1,7 +1,8 @@
 // Cria uma hamburgueria de demonstração: login demo@cardapio.app / demo12345
 // Usa o mesmo banco do app (DATABASE_URL do Supabase, se definido).
-const { db } = require('./db');
-const { hashPassword } = require('./auth');
+import process from 'node:process';
+import { db } from './db.js';
+import { hashPassword } from './auth.js';
 
 const EMAIL = 'demo@cardapio.app';
 const img = (id) => `https://images.unsplash.com/${id}?w=600&q=70&auto=format&fit=crop`;

@@ -1,8 +1,12 @@
-// Camada de banco: Postgres do Supabase (DATABASE_URL) em produção, ou PGlite
-// (Postgres embutido) localmente e nos testes. As tabelas ficam no schema
-// "cardapio" para não colidir com outras tabelas do mesmo projeto Supabase.
-const path = require('node:path');
-const fs = require('node:fs');
+// Camada de banco: Postgres do Supabase em produção, ou PGlite (Postgres
+// embutido) localmente e nos testes. As tabelas ficam no schema "cardapio"
+// para não colidir com outras tabelas do mesmo projeto Supabase.
+// Na Edge Function do Supabase, a conexão vem pronta em SUPABASE_DB_URL.
+import process from 'node:process';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import postgres from 'postgres';
 
 const SCHEMA_SQL = `
 CREATE SCHEMA IF NOT EXISTS cardapio;
@@ -130,6 +134,25 @@ CREATE TABLE IF NOT EXISTS cardapio.images (
 );
 ALTER TABLE cardapio.images ENABLE ROW LEVEL SECURITY;
 
+-- Códigos de uso único para a função do Stripe (na Netlify) confirmar pedidos do servidor
+CREATE TABLE IF NOT EXISTS cardapio.stripe_tokens (
+  token TEXT PRIMARY KEY,
+  restaurant_id INTEGER NOT NULL REFERENCES cardapio.restaurants(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used BOOLEAN NOT NULL DEFAULT false
+);
+ALTER TABLE cardapio.stripe_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Configurações da plataforma (ex.: e-mails de superadmin), editáveis pelo banco
+CREATE TABLE IF NOT EXISTS cardapio.settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);
+ALTER TABLE cardapio.settings ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE cardapio.restaurants ADD COLUMN IF NOT EXISTS stripe_synced_at TIMESTAMPTZ;
+
 -- Defesa extra: mesmo que alguém exponha o schema na API do Supabase,
 -- nenhuma linha fica visível sem políticas. O backend conecta como dono das tabelas.
 ALTER TABLE cardapio.users ENABLE ROW LEVEL SECURITY;
@@ -142,11 +165,11 @@ ALTER TABLE cardapio.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cardapio.order_items ENABLE ROW LEVEL SECURITY;
 `;
 
-class ConfigError extends Error {}
+export class ConfigError extends Error {}
 
 // Lê a DATABASE_URL de forma tolerante: aceita senha com caracteres especiais
 // (@ # / ? %), colchetes esquecidos do "[YOUR-PASSWORD]", espaços e aspas.
-function parseDatabaseUrl(raw) {
+export function parseDatabaseUrl(raw) {
   let text = String(raw).trim().replace(/^DATABASE_URL\s*=\s*/i, '').trim();
   text = text.replace(/^["'`]+|["'`]+$/g, '').trim();
   const scheme = /^(postgres(?:ql)?):\/\//i.exec(text);
@@ -190,7 +213,7 @@ function parseDatabaseUrl(raw) {
 }
 
 // Versão da DATABASE_URL sem a senha, para mostrar no diagnóstico.
-function describeDatabaseUrl(raw) {
+export function describeDatabaseUrl(raw) {
   try {
     const c = parseDatabaseUrl(raw);
     return `postgresql://${c.username}:****@${c.host}:${c.port}/${c.database}`;
@@ -200,7 +223,6 @@ function describeDatabaseUrl(raw) {
 }
 
 async function connectPostgres(url) {
-  const postgres = require('postgres');
   const config = parseDatabaseUrl(url);
   const local = /^(localhost|127\.0\.0\.1)$/.test(config.host);
   const sql = postgres({
@@ -221,7 +243,7 @@ async function connectPostgres(url) {
 }
 
 async function connectPglite() {
-  const target = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'pglite');
+  const target = process.env.DB_PATH || fileURLToPath(new URL('../data/pglite', import.meta.url));
   const dir = target === ':memory:' ? undefined : target;
   if (dir) fs.mkdirSync(path.dirname(dir), { recursive: true });
   // Nome em variável para os empacotadores de função não incluírem o PGlite.
@@ -236,10 +258,16 @@ async function connectPglite() {
   };
 }
 
+// DATABASE_URL (configurada à mão) ou SUPABASE_DB_URL (injetada pelo Supabase).
+export function databaseUrl() {
+  return process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
+}
+
 let ready;
 function connection() {
   if (!ready) {
-    ready = (process.env.DATABASE_URL ? connectPostgres(process.env.DATABASE_URL) : connectPglite())
+    const url = databaseUrl();
+    ready = (url ? connectPostgres(url) : connectPglite())
       .catch((err) => { ready = null; throw err; });
   }
   return ready;
@@ -252,10 +280,10 @@ function helpers(runner) {
   };
 }
 
-const db = {
+export const db = {
   query: async (text, params) => (await connection()).query(text, params),
   one: async (text, params) => (await db.query(text, params))[0],
   tx: async (fn) => (await connection()).tx((runner) => fn(helpers(runner))),
 };
 
-module.exports = { db, SCHEMA_SQL, parseDatabaseUrl, describeDatabaseUrl, ConfigError };
+export { SCHEMA_SQL };

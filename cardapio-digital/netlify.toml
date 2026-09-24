@@ -1,4 +1,8 @@
 # Na Netlify, defina "Base directory" = cardapio-digital
+#
+# As páginas são arquivos estáticos. A API roda como Edge Function no Supabase
+# (que já tem acesso ao banco, sem senha nenhuma aqui). Só o Stripe roda na
+# Netlify, porque as chaves dele estão nas variáveis de ambiente daqui.
 [build]
   command = "npm install"
   publish = "public"
@@ -6,11 +10,19 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-  external_node_modules = ["express", "postgres", "serverless-http", "stripe"]
+  external_node_modules = ["stripe"]
 
+# Webhook do Stripe: fica na Netlify, que tem o segredo de assinatura.
+[[redirects]]
+  from = "/api/webhooks/stripe"
+  to = "/.netlify/functions/stripe/webhook"
+  status = 200
+  force = true
+
+# Resto da API: Edge Function "api" do Supabase.
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "https://emowbrpmoofomhzcqpbz.supabase.co/functions/v1/api/:splat"
   status = 200
   force = true
 

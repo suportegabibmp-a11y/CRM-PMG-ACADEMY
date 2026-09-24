@@ -1,160 +1,145 @@
-// Assinatura do SaaS via Stripe: o restaurante paga a mensalidade (plano
-// único) pelo Stripe Checkout e gerencia cartão e cancelamento pelo Portal
-// do Cliente. Os webhooks mantêm a assinatura sincronizada.
-const { db } = require('./db');
+// Assinatura do SaaS via Stripe (plano único).
+//
+// As chaves do Stripe ficam só na função da Netlify (netlify/functions/stripe.js).
+// Este servidor pede as operações a ela entregando um código de uso único; a
+// função confirma o código chamando de volta este servidor (/api/internal/
+// stripe-token) antes de agir. Assim ninguém consegue se passar pelo servidor,
+// e o servidor confia nas respostas porque é ele quem chama o endereço fixo.
+import crypto from 'node:crypto';
+import { db } from './db.js';
+import { STRIPE_SERVICE_URL } from './config.js';
 
-const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];
+export const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];
 
-let client;
-function stripe() {
-  if (!client) {
-    const Stripe = require('stripe');
-    client = new Stripe(process.env.STRIPE_SECRET_KEY);
-  }
-  return client;
+export function enabled() {
+  return Boolean(STRIPE_SERVICE_URL);
 }
 
-// Permite injetar um cliente falso nos testes.
-function setClient(fake) { client = fake; }
-
-// Aceita os nomes antigos das variáveis para quem já tinha configurado.
-function priceId() {
-  return process.env.STRIPE_PRICE_ID || process.env.STRIPE_PRICE_BASIC || process.env.STRIPE_PRICE_PRO || '';
-}
-
-function enabled() {
-  return Boolean(process.env.STRIPE_SECRET_KEY && priceId());
-}
-
-function hasLiveSubscription(r) {
+export function hasLiveSubscription(r) {
   return Boolean(r.stripe_subscription_id) && ACTIVE_STATUSES.includes(r.subscription_status);
 }
 
-// Preço lido do Stripe e guardado em memória por 10 minutos.
-let priceCache = { at: 0, price: null };
-async function getPrice() {
-  if (!enabled()) return null;
-  if (priceCache.price && Date.now() - priceCache.at < 10 * 60e3) return priceCache.price;
-  const price = await stripe().prices.retrieve(priceId());
-  priceCache = {
-    at: Date.now(),
-    price: { amount_cents: price.unit_amount, currency: price.currency, interval: price.recurring?.interval || 'month' },
-  };
-  return priceCache.price;
+async function issueToken(restaurantId, purpose) {
+  const token = crypto.randomBytes(32).toString('hex');
+  await db.query(
+    `INSERT INTO cardapio.stripe_tokens (token, restaurant_id, purpose, expires_at)
+     VALUES ($1, $2, $3, now() + interval '2 minutes')`,
+    [token, restaurantId, purpose]
+  );
+  return token;
 }
 
-async function createCheckout({ restaurant, user, baseUrl }) {
+async function callService(path, body) {
+  const res = await fetch(`${STRIPE_SERVICE_URL}${path}`, {
+    method: body ? 'POST' : 'GET',
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(20000),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw Object.assign(new Error(data.error || `Serviço do Stripe respondeu ${res.status}`), {
+      status: res.status >= 400 && res.status < 500 ? res.status : undefined,
+    });
+  }
+  return data;
+}
+
+// Chamado pela função do Stripe para confirmar um código. Cada código vale
+// uma vez só e expira em 2 minutos.
+export async function redeemToken(token) {
+  if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return null;
+  const row = await db.one(
+    `UPDATE cardapio.stripe_tokens SET used = true
+     WHERE token = $1 AND NOT used AND expires_at > now() RETURNING restaurant_id, purpose`,
+    [token]
+  );
+  if (!row) return null;
+  const r = await db.one(
+    `SELECT r.id, r.name, r.stripe_customer_id, r.stripe_subscription_id, u.email
+     FROM cardapio.restaurants r JOIN cardapio.users u ON u.id = r.owner_id WHERE r.id = $1`,
+    [row.restaurant_id]
+  );
+  return {
+    purpose: row.purpose,
+    restaurant_id: r.id,
+    restaurant_name: r.name,
+    email: r.email,
+    customer_id: r.stripe_customer_id,
+    subscription_id: r.stripe_subscription_id,
+  };
+}
+
+// Preço mostrado no painel, guardado em memória por 10 minutos.
+let priceCache = { at: 0, price: null };
+export async function getPrice() {
+  if (!enabled()) return null;
+  if (priceCache.price && Date.now() - priceCache.at < 10 * 60e3) return priceCache.price;
+  const price = await callService('/price');
+  priceCache = { at: Date.now(), price };
+  return price;
+}
+
+export async function createCheckout({ restaurant, baseUrl }) {
   if (hasLiveSubscription(restaurant)) {
     throw Object.assign(new Error('Você já tem uma assinatura ativa.'), { status: 409 });
   }
-
-  let customerId = restaurant.stripe_customer_id;
-  if (!customerId) {
-    const customer = await stripe().customers.create({
-      email: user.email,
-      name: restaurant.name,
-      metadata: { restaurant_id: String(restaurant.id) },
-    });
-    customerId = customer.id;
-    await db.query('UPDATE cardapio.restaurants SET stripe_customer_id = $1 WHERE id = $2', [customerId, restaurant.id]);
-  }
-
-  const session = await stripe().checkout.sessions.create({
-    mode: 'subscription',
-    customer: customerId,
-    client_reference_id: String(restaurant.id),
-    line_items: [{ price: priceId(), quantity: 1 }],
-    subscription_data: { metadata: { restaurant_id: String(restaurant.id) } },
-    allow_promotion_codes: true,
-    locale: 'pt-BR',
+  const token = await issueToken(restaurant.id, 'checkout');
+  const data = await callService('/checkout', {
+    token,
     success_url: `${baseUrl}/admin?assinatura=ok#billing`,
     cancel_url: `${baseUrl}/admin#billing`,
   });
-  return session.url;
+  if (data.customer_id && data.customer_id !== restaurant.stripe_customer_id) {
+    await db.query('UPDATE cardapio.restaurants SET stripe_customer_id = $1 WHERE id = $2', [data.customer_id, restaurant.id]);
+  }
+  return data.url;
 }
 
-async function createPortal({ restaurant, baseUrl }) {
+export async function createPortal({ restaurant, baseUrl }) {
   if (!restaurant.stripe_customer_id) {
     throw Object.assign(new Error('Você ainda não tem assinatura.'), { status: 400 });
   }
-  const session = await stripe().billingPortal.sessions.create({
-    customer: restaurant.stripe_customer_id,
-    return_url: `${baseUrl}/admin#billing`,
-  });
-  return session.url;
+  const token = await issueToken(restaurant.id, 'portal');
+  const data = await callService('/portal', { token, return_url: `${baseUrl}/admin#billing` });
+  return data.url;
 }
 
-// Busca a assinatura no Stripe e grava o estado atual no restaurante.
-// Sempre consultamos o Stripe em vez de confiar na ordem dos eventos.
-async function syncSubscription(subscriptionId, restaurantIdHint) {
-  const sub = await stripe().subscriptions.retrieve(subscriptionId);
-  const restaurantId = Number(sub.metadata?.restaurant_id || restaurantIdHint);
-  if (!Number.isInteger(restaurantId) || restaurantId <= 0) return;
-
-  const item = sub.items?.data?.[0];
-  const periodEnd = item?.current_period_end || sub.current_period_end;
+// Busca no Stripe (pela função da Netlify) a assinatura atual e grava no banco.
+export async function syncSubscription(restaurant) {
+  if (!enabled() || !restaurant.stripe_customer_id) return;
+  const token = await issueToken(restaurant.id, 'status');
+  const { subscription: sub } = await callService('/status', { token });
+  if (!sub) {
+    await db.query('UPDATE cardapio.restaurants SET stripe_synced_at = now() WHERE id = $1', [restaurant.id]);
+    return;
+  }
   const live = ACTIVE_STATUSES.includes(sub.status);
-  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
-
-  // Um evento atrasado de uma assinatura antiga não pode sobrescrever a atual.
+  // Uma assinatura antiga encerrada não sobrescreve outra ativa.
   await db.query(
     `UPDATE cardapio.restaurants SET
-       stripe_customer_id = COALESCE(NULLIF($2, ''), stripe_customer_id),
-       stripe_subscription_id = $3,
-       subscription_status = $4,
-       current_period_end = $5,
-       plan = CASE WHEN $6::boolean AND plan <> 'suspended' THEN 'paid' ELSE plan END
-     WHERE id = $1 AND (stripe_subscription_id = '' OR stripe_subscription_id = $3 OR $6::boolean)`,
-    [
-      restaurantId, customerId || '', sub.id, sub.status,
-      periodEnd ? new Date(periodEnd * 1000) : null,
-      live,
-    ]
+       stripe_subscription_id = $2,
+       subscription_status = $3,
+       current_period_end = $4,
+       plan = CASE WHEN $5::boolean AND plan <> 'suspended' THEN 'paid' ELSE plan END,
+       stripe_synced_at = now()
+     WHERE id = $1 AND (stripe_subscription_id = '' OR stripe_subscription_id = $2 OR $5::boolean
+       OR subscription_status NOT IN ('active', 'trialing', 'past_due'))`,
+    [restaurant.id, sub.id, sub.status, sub.current_period_end ? new Date(sub.current_period_end * 1000) : null, live]
   );
 }
 
-async function handleWebhook(rawBody, signature) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret) throw Object.assign(new Error('STRIPE_WEBHOOK_SECRET não configurado'), { status: 500 });
-  let event;
+// Sincroniza se a última sincronização for mais antiga que maxAgeMs. Erros só
+// vão para o log: o painel continua funcionando com o último estado salvo.
+export async function maybeSync(restaurant, maxAgeMs) {
+  if (!enabled() || !restaurant.stripe_customer_id) return false;
+  const last = restaurant.stripe_synced_at ? new Date(restaurant.stripe_synced_at).getTime() : 0;
+  if (Date.now() - last < maxAgeMs) return false;
   try {
-    event = stripe().webhooks.constructEvent(rawBody, signature, secret);
-  } catch {
-    throw Object.assign(new Error('Assinatura do webhook inválida'), { status: 400 });
-  }
-
-  const obj = event.data.object;
-  switch (event.type) {
-    case 'checkout.session.completed':
-      if (obj.mode === 'subscription' && obj.subscription) {
-        await syncSubscription(obj.subscription, obj.client_reference_id);
-      }
-      break;
-    case 'customer.subscription.created':
-    case 'customer.subscription.updated':
-    case 'customer.subscription.deleted':
-    case 'customer.subscription.paused':
-    case 'customer.subscription.resumed':
-      await syncSubscription(obj.id);
-      break;
-    case 'invoice.paid':
-    case 'invoice.payment_failed': {
-      const subId = obj.parent?.subscription_details?.subscription || obj.subscription;
-      if (subId) await syncSubscription(typeof subId === 'string' ? subId : subId.id);
-      break;
-    }
-    default:
-      break;
+    await syncSubscription(restaurant);
+    return true;
+  } catch (err) {
+    console.error('Stripe (sincronização):', err.message);
+    return false;
   }
 }
-
-module.exports = {
-  ACTIVE_STATUSES,
-  enabled,
-  setClient,
-  getPrice,
-  createCheckout,
-  createPortal,
-  handleWebhook,
-  hasLiveSubscription,
-};

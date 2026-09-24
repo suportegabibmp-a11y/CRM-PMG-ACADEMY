@@ -1,16 +1,18 @@
 // Integração de pagamentos. Cada restaurante usa o próprio Access Token do
 // Mercado Pago, então o dinheiro cai direto na conta do restaurante.
 // Sem token, e com ALLOW_DEMO_PAYMENTS ativo, usamos um provedor de demonstração.
-const crypto = require('node:crypto');
+import crypto from 'node:crypto';
+import process from 'node:process';
+import { Buffer } from 'node:buffer';
 
 const MP_API = 'https://api.mercadopago.com';
 
-function demoPaymentsAllowed() {
+export function demoPaymentsAllowed() {
   if (process.env.ALLOW_DEMO_PAYMENTS) return process.env.ALLOW_DEMO_PAYMENTS === 'true';
   return process.env.NODE_ENV !== 'production';
 }
 
-function providerFor(restaurant) {
+export function providerFor(restaurant) {
   if (restaurant.mp_access_token) return 'mercadopago';
   if (demoPaymentsAllowed()) return 'demo';
   return null;
@@ -45,7 +47,7 @@ function mapMpStatus(status) {
   return 'pending';
 }
 
-async function createPix({ restaurant, order, baseUrl }) {
+export async function createPix({ restaurant, order, baseUrl }) {
   const provider = providerFor(restaurant);
   if (provider === 'demo') {
     const code = `00020126DEMO-PIX-${order.id}-${(order.total_cents / 100).toFixed(2)}5204000053039865802BR`;
@@ -74,7 +76,7 @@ async function createPix({ restaurant, order, baseUrl }) {
   };
 }
 
-async function createCardCheckout({ restaurant, order, items, baseUrl }) {
+export async function createCardCheckout({ restaurant, order, items, baseUrl }) {
   const provider = providerFor(restaurant);
   const returnUrl = `${baseUrl}/pedido/${order.id}`;
   if (provider === 'demo') {
@@ -110,7 +112,7 @@ async function createCardCheckout({ restaurant, order, items, baseUrl }) {
 
 // Consulta o Mercado Pago e devolve { status, paymentId } do pagamento mais
 // relevante do pedido (aprovado tem prioridade), ou null se não houver nenhum.
-async function fetchPaymentStatus({ restaurant, order }) {
+export async function fetchPaymentStatus({ restaurant, order }) {
   if (order.payment_provider !== 'mercadopago' || !restaurant.mp_access_token) return null;
   const search = await mpFetch(
     restaurant.mp_access_token,
@@ -125,7 +127,7 @@ async function fetchPaymentStatus({ restaurant, order }) {
   return { status: mapMpStatus(best.status), paymentId: String(best.id) };
 }
 
-async function fetchPaymentById({ restaurant, paymentId }) {
+export async function fetchPaymentById({ restaurant, paymentId }) {
   const p = await mpFetch(restaurant.mp_access_token, `/v1/payments/${encodeURIComponent(paymentId)}`);
   return {
     orderId: p.external_reference,
@@ -137,7 +139,7 @@ async function fetchPaymentById({ restaurant, paymentId }) {
 
 // Valida a assinatura x-signature enviada pelo Mercado Pago nos webhooks.
 // Só é verificada quando MP_WEBHOOK_SECRET está configurado.
-function verifyWebhookSignature(req, dataId) {
+export function verifyWebhookSignature(req, dataId) {
   const secret = process.env.MP_WEBHOOK_SECRET;
   if (!secret) return true;
   const sig = req.headers['x-signature'] || '';
@@ -150,12 +152,3 @@ function verifyWebhookSignature(req, dataId) {
     crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(parts.v1));
 }
 
-module.exports = {
-  providerFor,
-  demoPaymentsAllowed,
-  createPix,
-  createCardCheckout,
-  fetchPaymentStatus,
-  fetchPaymentById,
-  verifyWebhookSignature,
-};

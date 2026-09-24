@@ -1,12 +1,25 @@
 // Utilitários compartilhados pelas páginas.
+
+// Token de login guardado no navegador e enviado no cabeçalho Authorization.
+const SESSION_KEY = 'session_token';
+const session = {
+  get() { try { return localStorage.getItem(SESSION_KEY) || ''; } catch { return ''; } },
+  set(t) { try { t ? localStorage.setItem(SESSION_KEY, t) : localStorage.removeItem(SESSION_KEY); } catch { /* sem armazenamento */ } },
+};
+
 async function api(path, { method = 'GET', body } = {}) {
+  const headers = body ? { 'Content-Type': 'application/json' } : {};
+  const token = session.get();
+  if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(path, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers,
     body: body ? JSON.stringify(body) : undefined,
     credentials: 'same-origin',
   });
   const data = await res.json().catch(() => null);
+  if (data?.token) session.set(data.token);
+  if (path === '/api/auth/logout' || (res.status === 401 && path === '/api/auth/me')) session.set('');
   if (!res.ok || data === null) {
     // Sem JSON: a API nem respondeu (função não publicada ou fora do ar).
     const fallback = data === null

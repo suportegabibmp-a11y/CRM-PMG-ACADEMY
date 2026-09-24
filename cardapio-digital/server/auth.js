@@ -1,31 +1,42 @@
-const crypto = require('node:crypto');
-const { db } = require('./db');
+import crypto from 'node:crypto';
+import { Buffer } from 'node:buffer';
+import { db } from './db.js';
 
 const SESSION_DAYS = 30;
 const COOKIE = 'sid';
 
-function hashPassword(password) {
+export function hashPassword(password) {
   const salt = crypto.randomBytes(16);
   const hash = crypto.scryptSync(password, salt, 64);
   return `${salt.toString('hex')}:${hash.toString('hex')}`;
 }
 
-function verifyPassword(password, stored) {
+export function verifyPassword(password, stored) {
   const [saltHex, hashHex] = stored.split(':');
   const expected = Buffer.from(hashHex, 'hex');
   const actual = crypto.scryptSync(password, Buffer.from(saltHex, 'hex'), expected.length);
   return crypto.timingSafeEqual(expected, actual);
 }
 
-async function createSession(req, res, userId) {
+// Cria a sessão e devolve o token. Ele vai num cookie e também na resposta,
+// para o navegador enviar no cabeçalho Authorization (funciona mesmo quando
+// a API passa por um proxy que não repassa cookies).
+export async function createSession(req, res, userId) {
   const token = crypto.randomBytes(32).toString('hex');
   const expires = new Date(Date.now() + SESSION_DAYS * 864e5);
   await db.query('INSERT INTO cardapio.sessions (token, user_id, expires_at) VALUES ($1, $2, $3)', [token, userId, expires]);
   res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: req.secure, expires });
+  return token;
 }
 
-async function destroySession(req, res) {
-  const token = readCookie(req, COOKIE);
+function readToken(req) {
+  const header = String(req.headers.authorization || '');
+  if (header.startsWith('Bearer ')) return header.slice(7).trim();
+  return readCookie(req, COOKIE);
+}
+
+export async function destroySession(req, res) {
+  const token = readToken(req);
   if (token) await db.query('DELETE FROM cardapio.sessions WHERE token = $1', [token]);
   res.clearCookie(COOKIE);
 }
@@ -40,8 +51,9 @@ function readCookie(req, name) {
 }
 
 // Anexa req.user e req.restaurant; responde 401 se não houver sessão válida.
-async function requireAuth(req, res, next) {
-  const token = readCookie(req, COOKIE);
+export async function requireAuth(req, res, next) {
+  const token = readToken(req);
+  if (token && !/^[0-9a-f]{64}$/.test(token)) return res.status(401).json({ error: 'Não autenticado' });
   const row = token && await db.one(
     `SELECT u.id AS user_id, u.name AS user_name, u.email AS user_email, r.*
      FROM cardapio.sessions s
@@ -57,4 +69,3 @@ async function requireAuth(req, res, next) {
   next();
 }
 
-module.exports = { hashPassword, verifyPassword, createSession, destroySession, requireAuth };

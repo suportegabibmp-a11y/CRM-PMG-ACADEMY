@@ -1,56 +1,34 @@
-const path = require('node:path');
-const crypto = require('node:crypto');
-const express = require('express');
-const { db, describeDatabaseUrl } = require('./db');
-const auth = require('./auth');
-const payments = require('./payments');
-const billing = require('./billing');
+import path from 'node:path';
+import crypto from 'node:crypto';
+import process from 'node:process';
+import { Buffer } from 'node:buffer';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import { db, databaseUrl, describeDatabaseUrl } from './db.js';
+import * as auth from './auth.js';
+import * as payments from './payments.js';
+import * as billing from './billing.js';
+import { ON_EDGE, siteUrl } from './config.js';
 
 const app = express();
 app.set('trust proxy', true);
 
-// O webhook do Stripe precisa do corpo cru para validar a assinatura,
-// por isso é registrado antes do express.json().
-app.post('/api/webhooks/stripe', express.raw({ type: '*/*', limit: '1mb' }), async (req, res) => {
-  try {
-    await billing.handleWebhook(req.body, req.headers['stripe-signature']);
-    res.json({ received: true });
-  } catch (err) {
-    console.error('Webhook Stripe:', err.message);
-    res.status(err.status || 500).json({ error: err.message });
-  }
-});
-
-function databaseHint(err, shown) {
-  const msg = String(err.message);
-  if (/password authentication failed/i.test(msg)) return 'Senha incorreta. Redefina a senha em Project Settings > Database e atualize a DATABASE_URL.';
-  if (/Tenant or user not found/i.test(msg)) return 'Usuário ou servidor errado. Copie de novo a URL do Transaction pooler (usuário postgres.SEU-PROJETO).';
-  if (shown && /:5432\//.test(shown) && /^postgresql:\/\/postgres:/.test(shown)) return 'Você usou a conexão direta (porta 5432). Use a do Transaction pooler (porta 6543).';
-  if (/ENOTFOUND|getaddrinfo/i.test(msg)) return 'Endereço do servidor não encontrado. Confira o host da URL (…pooler.supabase.com).';
-  if (/timeout|ETIMEDOUT|ENETUNREACH/i.test(msg)) return 'O servidor não respondeu. Use a URL do Transaction pooler (porta 6543).';
-  return 'Confira a DATABASE_URL: postgresql://postgres.SEU-PROJETO:SENHA@aws-0-REGIAO.pooler.supabase.com:6543/postgres';
-}
-
 // Muda a cada atualização, para conferir se o deploy novo está no ar.
-const APP_VERSION = '2026-09-24.5';
+const APP_VERSION = '2026-09-24.6';
 
 // Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
 app.get('/api/health', async (req, res) => {
   const checks = {
     versao: APP_VERSION,
-    database_url_configured: Boolean(process.env.DATABASE_URL),
-    database_password_configured: Boolean(process.env.DATABASE_PASSWORD),
+    servidor: ON_EDGE ? 'supabase-edge' : 'node',
     stripe_configured: billing.enabled(),
   };
-  if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-    return res.status(503).json({ ok: false, ...checks, database: 'DATABASE_URL não configurada nas variáveis de ambiente' });
-  }
   try {
     await db.query('SELECT 1 FROM cardapio.restaurants LIMIT 1');
     res.json({ ok: true, ...checks, database: 'ok' });
   } catch (err) {
     console.error('Health check:', err);
-    const shown = process.env.DATABASE_URL ? describeDatabaseUrl(process.env.DATABASE_URL) : null;
+    const shown = databaseUrl() ? describeDatabaseUrl(databaseUrl()) : null;
     res.status(503).json({
       ok: false,
       ...checks,
@@ -85,9 +63,22 @@ app.get('/api/img/:id', async (req, res) => {
 
 app.use(express.json({ limit: '200kb' }));
 
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-const SUPERADMINS = (process.env.SUPERADMIN_EMAILS || '')
-  .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+const PUBLIC_DIR = fileURLToPath(new URL('../public', import.meta.url));
+
+// Superadmins: variável SUPERADMIN_EMAILS e/ou a configuração
+// "superadmin_emails" na tabela cardapio.settings.
+let superadminCache = { at: 0, list: [] };
+async function isSuperadmin(email) {
+  if (Date.now() - superadminCache.at > 60e3) {
+    const row = await db.one(`SELECT value FROM cardapio.settings WHERE key = 'superadmin_emails'`).catch(() => null);
+    superadminCache = {
+      at: Date.now(),
+      list: `${process.env.SUPERADMIN_EMAILS || ''},${row?.value || ''}`
+        .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
+    };
+  }
+  return superadminCache.list.includes(String(email).toLowerCase());
+}
 const TZ = process.env.APP_TIMEZONE || 'America/Sao_Paulo';
 
 const ORDER_STATUSES = ['awaiting_payment', 'received', 'preparing', 'ready', 'out_for_delivery', 'completed', 'canceled'];
@@ -131,9 +122,7 @@ async function uniqueSlug(q, base) {
   return slug;
 }
 
-function baseUrl(req) {
-  return (process.env.PUBLIC_URL || process.env.URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-}
+const baseUrl = siteUrl;
 
 // Limitador simples em memória (por IP + chave). Em ambiente serverless vale
 // por instância, o que ainda segura abusos mais grosseiros.
@@ -257,8 +246,8 @@ app.post('/api/auth/signup', rateLimit('signup', 10, 60 * 60e3), async (req, res
       [u.id, await uniqueSlug(q, slugify(restaurantName)), restaurantName]);
     return u.id;
   });
-  await auth.createSession(req, res, userId);
-  res.status(201).json({ ok: true });
+  const token = await auth.createSession(req, res, userId);
+  res.status(201).json({ ok: true, token });
 });
 
 app.post('/api/auth/login', rateLimit('login', 20, 15 * 60e3), async (req, res) => {
@@ -268,8 +257,8 @@ app.post('/api/auth/login', rateLimit('login', 20, 15 * 60e3), async (req, res) 
   if (!user || !auth.verifyPassword(password, user.password_hash)) {
     throw new HttpError(401, 'E-mail ou senha incorretos.');
   }
-  await auth.createSession(req, res, user.id);
-  res.json({ ok: true });
+  const token = await auth.createSession(req, res, user.id);
+  res.json({ ok: true, token });
 });
 
 app.post('/api/auth/logout', async (req, res) => {
@@ -277,9 +266,13 @@ app.post('/api/auth/logout', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/auth/me', auth.requireAuth, (req, res) => {
+app.get('/api/auth/me', auth.requireAuth, async (req, res) => {
+  // Confere a assinatura no Stripe de vez em quando (no máximo 1x por hora).
+  if (await billing.maybeSync(req.restaurant, 3600e3)) {
+    req.restaurant = await db.one('SELECT * FROM cardapio.restaurants WHERE id = $1', [req.restaurant.id]);
+  }
   res.json({
-    user: { ...req.user, is_superadmin: SUPERADMINS.includes(req.user.email) },
+    user: { ...req.user, is_superadmin: await isSuperadmin(req.user.email) },
     restaurant: adminRestaurant(req.restaurant),
   });
 });
@@ -458,6 +451,12 @@ admin.get('/stats', async (req, res) => {
 // ---------- assinatura do SaaS (Stripe) ----------
 
 admin.get('/billing', async (req, res) => {
+  // Sem assinatura ativa, o dono provavelmente está esperando o pagamento
+  // aparecer: consulta o Stripe sempre. Com assinatura, no máximo a cada 10s.
+  const maxAge = billing.hasLiveSubscription(req.restaurant) ? 10e3 : 0;
+  if (await billing.maybeSync(req.restaurant, maxAge)) {
+    req.restaurant = await db.one('SELECT * FROM cardapio.restaurants WHERE id = $1', [req.restaurant.id]);
+  }
   const r = req.restaurant;
   let price = null;
   try {
@@ -482,7 +481,7 @@ admin.post('/billing/checkout', async (req, res) => {
   if (!billing.enabled()) throw new HttpError(503, 'Assinaturas ainda não estão configuradas.');
   if (req.restaurant.plan === 'suspended') throw new HttpError(403, 'Conta suspensa. Fale com o suporte.');
   try {
-    res.json({ url: await billing.createCheckout({ restaurant: req.restaurant, user: req.user, baseUrl: baseUrl(req) }) });
+    res.json({ url: await billing.createCheckout({ restaurant: req.restaurant, baseUrl: baseUrl(req) }) });
   } catch (err) {
     if (err.status) throw new HttpError(err.status, err.message);
     console.error('Stripe (checkout):', err.message);
@@ -506,8 +505,8 @@ app.use('/api/admin', admin);
 // ---------- superadmin (dono do SaaS) ----------
 
 const superadmin = express.Router();
-superadmin.use(auth.requireAuth, (req, res, next) => {
-  if (!SUPERADMINS.includes(req.user.email)) return res.status(403).json({ error: 'Acesso negado' });
+superadmin.use(auth.requireAuth, async (req, res, next) => {
+  if (!await isSuperadmin(req.user.email)) return res.status(403).json({ error: 'Acesso negado' });
   next();
 });
 
@@ -708,6 +707,24 @@ app.post('/api/public/orders/:id/demo-pay', async (req, res) => {
   res.json(await publicOrder(await loadOrder(order.id)));
 });
 
+// ---------- ponte com a função do Stripe (Netlify) ----------
+
+// A função do Stripe confirma aqui o código de uso único que recebeu.
+app.post('/api/internal/stripe-token', rateLimit('stripe-token', 300, 15 * 60e3), async (req, res) => {
+  const info = await billing.redeemToken(req.body?.token);
+  if (!info) throw new HttpError(404, 'Código inválido ou expirado.');
+  res.json(info);
+});
+
+// O webhook do Stripe (na Netlify) avisa que algo mudou; buscamos o estado
+// atual no Stripe nós mesmos, sem confiar no aviso.
+app.post('/api/internal/stripe-sync', rateLimit('stripe-sync', 120, 15 * 60e3), async (req, res) => {
+  const id = Number(req.body?.restaurant_id);
+  const r = Number.isInteger(id) && id > 0 && await db.one('SELECT * FROM cardapio.restaurants WHERE id = $1', [id]);
+  if (r) await billing.maybeSync(r, 0);
+  res.json({ ok: true });
+});
+
 // ---------- webhooks ----------
 
 app.post('/api/webhooks/mercadopago/:restaurantId', async (req, res) => {
@@ -745,9 +762,4 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Erro interno' });
 });
 
-if (require.main === module) {
-  const port = Number(process.env.PORT) || 3000;
-  app.listen(port, () => console.log(`Cardápio Digital rodando em http://localhost:${port}`));
-}
-
-module.exports = app;
+export default app;

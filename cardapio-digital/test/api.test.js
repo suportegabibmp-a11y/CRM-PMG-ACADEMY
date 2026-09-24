@@ -1,9 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import process from 'node:process';
+
 process.env.DB_PATH = ':memory:';
 process.env.ALLOW_DEMO_PAYMENTS = 'true';
-
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const app = require('../server/index');
+const { default: app } = await import('../server/index.js');
 
 let server;
 let base;
@@ -15,17 +16,19 @@ test.before(async () => {
 });
 test.after(() => server.close());
 
+// Autentica pelo token devolvido no login (cabeçalho Authorization), como o
+// navegador faz quando a API passa pelo proxy da Netlify.
 function client() {
-  let cookie = '';
+  let token = '';
   return async (path, { method = 'GET', body } = {}) => {
     const res = await fetch(base + path, {
       method,
-      headers: { 'Content-Type': 'application/json', ...(cookie && { Cookie: cookie }) },
+      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
       body: body ? JSON.stringify(body) : undefined,
     });
-    const set = res.headers.get('set-cookie');
-    if (set) cookie = set.split(';')[0];
-    return { status: res.status, body: await res.json().catch(() => null) };
+    const data = await res.json().catch(() => null);
+    if (data?.token) token = data.token;
+    return { status: res.status, body: data };
   };
 }
 
