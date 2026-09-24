@@ -25,9 +25,9 @@ SaaS multi-restaurante: cada estabelecimento (restaurante, hamburgueria, pizzari
 - Teste grátis de 14 dias por conta. Com o teste vencido, o cardápio para de aceitar pedidos
 - Aba "Clientes do SaaS" (para e-mails em `SUPERADMIN_EMAILS`): lista de restaurantes, mudança de plano (`trial`, `basic`, `pro`, `suspended`) e extensão do teste
 
-## Como rodar
+## Como rodar localmente
 
-Requisito: **Node.js 22.13+** (usa o SQLite embutido do Node, sem banco externo).
+Requisito: **Node.js 20+**. Sem `DATABASE_URL`, o app usa um Postgres embutido (PGlite) em `./data/pglite`, sem instalar nada.
 
 ```bash
 cd cardapio-digital
@@ -40,17 +40,40 @@ npm start         # http://localhost:3000
 - Demonstração: `http://localhost:3000/m/burger-house`. Painel: login `demo@cardapio.app` / senha `demo12345`
 - Testes: `npm test`
 
+## Deploy na Netlify + Supabase
+
+As páginas são servidas como arquivos estáticos, a API roda como Netlify Function (`netlify/functions/api.js`) e o banco é o Postgres do Supabase. As tabelas são criadas sozinhas no primeiro acesso, no schema `cardapio`, sem mexer em outras tabelas do projeto.
+
+**1. Supabase**
+- Crie um projeto em https://supabase.com (ou use um existente)
+- Clique em **Connect** → **Transaction pooler** e copie a URI (porta **6543**), trocando `[YOUR-PASSWORD]` pela senha do banco:
+  `postgresql://postgres.xxxx:SENHA@aws-0-sa-east-1.pooler.supabase.com:6543/postgres`
+
+**2. Netlify** → *Site configuration*
+- **Build & deploy → Build settings**:
+  - Base directory: `cardapio-digital`
+  - Build command: `npm install` (já vem do `netlify.toml`)
+  - Publish directory: `cardapio-digital/public` (já vem do `netlify.toml`)
+  - Branch: a branch onde está este código
+- **Environment variables**:
+  - `DATABASE_URL` = a URI do passo 1 (obrigatório)
+  - `SUPERADMIN_EMAILS` = seu e-mail, para ver a aba "Clientes do SaaS"
+  - `ALLOW_DEMO_PAYMENTS` = `true` só se quiser testar o PIX/cartão simulado sem Mercado Pago
+- Faça um novo deploy (**Deploys → Trigger deploy → Clear cache and deploy site**)
+
+**3. (Opcional) Loja de demonstração no Supabase**: rode `DATABASE_URL="..." npm run seed` no seu computador.
+
 ## Variáveis de ambiente
 
 | Variável | Descrição |
 |---|---|
-| `PORT` | Porta HTTP (padrão 3000) |
-| `NODE_ENV` | Use `production` em produção (cookies `secure` e pagamentos de demonstração desligados) |
-| `PUBLIC_URL` | URL pública, ex.: `https://meucardapio.com.br`. Necessária para o webhook e o retorno do Mercado Pago |
-| `DB_PATH` | Caminho do arquivo SQLite (padrão `./data/cardapio.db`). Em produção, aponte para um **volume persistente** |
+| `DATABASE_URL` | Conexão Postgres (Supabase, pooler porta 6543). Sem ela, usa o PGlite local |
+| `PUBLIC_URL` | URL pública do site. Na Netlify é detectada sozinha; defina se usar domínio próprio |
 | `SUPERADMIN_EMAILS` | E-mails (separados por vírgula) com acesso à aba de clientes do SaaS |
 | `MP_WEBHOOK_SECRET` | (Opcional) Assinatura secreta dos webhooks do Mercado Pago, para validar o `x-signature` |
-| `ALLOW_DEMO_PAYMENTS` | `true` libera o pagamento simulado mesmo em produção (não recomendado) |
+| `ALLOW_DEMO_PAYMENTS` | `true` libera o pagamento simulado em produção (só para testes) |
+| `APP_TIMEZONE` | Fuso dos relatórios (padrão `America/Sao_Paulo`) |
+| `PORT`, `DB_PATH` | Só para rodar localmente |
 
 ## Pagamentos (Mercado Pago)
 
@@ -61,16 +84,10 @@ npm start         # http://localhost:3000
 Como a confirmação funciona:
 - O pedido online nasce como **Aguardando pagamento** e só aparece em "Novos" depois de aprovado
 - O Mercado Pago chama `POST /api/webhooks/mercadopago/:restaurantId`. O servidor **não confia no corpo**: consulta o pagamento na API com o token do restaurante e confere se o valor bate com o do pedido
-- Como reserva, a página do pedido consulta o status a cada 4 segundos enquanto aguarda (funciona até sem webhook)
+- Como reserva, a página do pedido consulta o status a cada 4 segundos enquanto aguarda
 - Os preços são sempre **recalculados no servidor**. O cliente não consegue alterar valores
 
-Sem token configurado (fora de produção), o sistema usa o **modo demonstração**: gera um PIX fictício e mostra um botão "Simular pagamento aprovado".
-
-## Deploy (Railway, Render, VPS…)
-
-- Comando de start: `npm start`, com diretório raiz `cardapio-digital`
-- Configure `NODE_ENV=production`, `PUBLIC_URL` e `DB_PATH` apontando para um volume persistente (ex.: `/data/cardapio.db`)
-- Use HTTPS (obrigatório para os webhooks do Mercado Pago)
+Sem token configurado, localmente o sistema usa o **modo demonstração** (PIX fictício + botão "Simular pagamento aprovado"). Em produção, sem token, só aparece o pagamento na entrega.
 
 ## Estrutura
 
@@ -78,10 +95,12 @@ Sem token configurado (fora de produção), o sistema usa o **modo demonstraçã
 cardapio-digital/
 ├── server/
 │   ├── index.js      # API REST + rotas das páginas
-│   ├── db.js         # Schema SQLite
+│   ├── db.js         # Schema e conexão (Supabase/Postgres ou PGlite)
 │   ├── auth.js       # Senhas (scrypt) e sessões por cookie
 │   ├── payments.js   # Mercado Pago (PIX, Checkout, webhook) + modo demo
 │   └── seed.js       # Dados de demonstração
+├── netlify/functions/api.js  # API como Netlify Function
+├── netlify.toml              # Build, função e rotas na Netlify
 ├── public/
 │   ├── index.html    # Landing page + cadastro/login
 │   ├── admin.*       # Painel do restaurante

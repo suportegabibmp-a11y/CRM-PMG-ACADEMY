@@ -50,8 +50,8 @@ function formatPhone(digits) {
   return d;
 }
 
-function formatDateTime(sqlDate) {
-  return new Date(sqlDate.replace(' ', 'T') + 'Z').toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+function formatDateTime(isoDate) {
+  return new Date(isoDate).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function openModal(html, { onClose } = {}) {

@@ -1,0 +1,30 @@
+# Na Netlify, defina "Base directory" = cardapio-digital
+[build]
+  command = "npm install"
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["express", "postgres", "serverless-http"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/m/*"
+  to = "/menu.html"
+  status = 200
+
+[[redirects]]
+  from = "/pedido/*"
+  to = "/order.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200

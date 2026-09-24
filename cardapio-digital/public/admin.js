@@ -48,7 +48,7 @@ function refreshChrome() {
   } else if (!restaurant.subscription_active) {
     banners.push('<div class="banner danger">Seu período de teste terminou e o cardápio não está recebendo pedidos. Assine um plano para continuar.</div>');
   } else if (restaurant.plan === 'trial') {
-    const days = Math.ceil((new Date(restaurant.trial_ends_at.replace(' ', 'T') + 'Z') - Date.now()) / 864e5);
+    const days = Math.ceil((new Date(restaurant.trial_ends_at) - Date.now()) / 864e5);
     banners.push(`<div class="banner">Teste grátis: ${days} dia(s) restante(s).</div>`);
   }
   if (restaurant.payment_options.demo) {
