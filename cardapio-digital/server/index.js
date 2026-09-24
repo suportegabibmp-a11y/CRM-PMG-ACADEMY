@@ -23,7 +23,7 @@ function databaseHint(err) {
 }
 
 // Muda a cada atualização, para conferir se o deploy novo está no ar.
-const APP_VERSION = '2026-09-24.8';
+const APP_VERSION = '2026-09-24.9';
 
 // Diagnóstico da instalação: mostra o que falta configurar, sem expor segredos.
 app.get('/api/health', async (req, res) => {
@@ -491,7 +491,7 @@ admin.post('/billing/checkout', async (req, res) => {
   if (!billing.enabled()) throw new HttpError(503, 'Assinaturas ainda não estão configuradas.');
   if (req.restaurant.plan === 'suspended') throw new HttpError(403, 'Conta suspensa. Fale com o suporte.');
   try {
-    res.json({ url: await billing.createCheckout({ restaurant: req.restaurant, baseUrl: baseUrl(req) }) });
+    res.json({ url: await billing.createCheckout({ restaurant: req.restaurant, email: req.user.email, baseUrl: baseUrl(req) }) });
   } catch (err) {
     if (err.status) throw new HttpError(err.status, err.message);
     console.error('Stripe (checkout):', err.message);
@@ -731,7 +731,16 @@ app.post('/api/internal/stripe-token', rateLimit('stripe-token', 300, 15 * 60e3)
 app.post('/api/internal/stripe-sync', rateLimit('stripe-sync', 120, 15 * 60e3), async (req, res) => {
   const id = Number(req.body?.restaurant_id);
   const r = Number.isInteger(id) && id > 0 && await db.one('SELECT * FROM cardapio.restaurants WHERE id = $1', [id]);
-  if (r) await billing.maybeSync(r, 0);
+  const sessionId = String(req.body?.checkout_session_id || '');
+  if (r && /^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
+    try {
+      await billing.syncSubscription(r, { checkoutSessionId: sessionId });
+    } catch (err) {
+      console.error('Stripe (ativação pelo link):', err.message);
+    }
+  } else if (r) {
+    await billing.maybeSync(r, 0);
+  }
   res.json({ ok: true });
 });
 

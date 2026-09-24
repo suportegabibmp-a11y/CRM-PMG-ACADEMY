@@ -7,7 +7,7 @@
 // e o servidor confia nas respostas porque é ele quem chama o endereço fixo.
 import crypto from 'node:crypto';
 import { db } from './db.js';
-import { STRIPE_SERVICE_URL } from './config.js';
+import { STRIPE_SERVICE_URL, PAYMENT_LINK } from './config.js';
 
 export const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];
 
@@ -75,14 +75,22 @@ let priceCache = { at: 0, price: null };
 export async function getPrice() {
   if (!enabled()) return null;
   if (priceCache.price && Date.now() - priceCache.at < 10 * 60e3) return priceCache.price;
-  const price = await callService('/price');
+  const price = await callService(PAYMENT_LINK ? `/price?link=${encodeURIComponent(PAYMENT_LINK)}` : '/price');
   priceCache = { at: Date.now(), price };
   return price;
 }
 
-export async function createCheckout({ restaurant, baseUrl }) {
+export async function createCheckout({ restaurant, email, baseUrl }) {
   if (hasLiveSubscription(restaurant)) {
     throw Object.assign(new Error('Você já tem uma assinatura ativa.'), { status: 409 });
+  }
+  // Link de pagamento do Stripe: o client_reference_id diz de qual restaurante
+  // é o pagamento; o webhook usa isso para ativar a assinatura.
+  if (PAYMENT_LINK) {
+    const url = new URL(PAYMENT_LINK);
+    url.searchParams.set('client_reference_id', String(restaurant.id));
+    if (email) url.searchParams.set('prefilled_email', email);
+    return url.toString();
   }
   const token = await issueToken(restaurant.id, 'checkout');
   const data = await callService('/checkout', {
@@ -106,10 +114,12 @@ export async function createPortal({ restaurant, baseUrl }) {
 }
 
 // Busca no Stripe (pela função da Netlify) a assinatura atual e grava no banco.
-export async function syncSubscription(restaurant) {
-  if (!enabled() || !restaurant.stripe_customer_id) return;
+// checkoutSessionId: vem do webhook quando alguém paga pelo link; a função do
+// Stripe confere que a sessão é deste restaurante antes de responder.
+export async function syncSubscription(restaurant, { checkoutSessionId } = {}) {
+  if (!enabled() || (!restaurant.stripe_customer_id && !checkoutSessionId)) return;
   const token = await issueToken(restaurant.id, 'status');
-  const { subscription: sub } = await callService('/status', { token });
+  const { subscription: sub } = await callService('/status', { token, checkout_session_id: checkoutSessionId });
   if (!sub) {
     await db.query('UPDATE cardapio.restaurants SET stripe_synced_at = now() WHERE id = $1', [restaurant.id]);
     return;
@@ -122,10 +132,11 @@ export async function syncSubscription(restaurant) {
        subscription_status = $3,
        current_period_end = $4,
        plan = CASE WHEN $5::boolean AND plan <> 'suspended' THEN 'paid' ELSE plan END,
+       stripe_customer_id = COALESCE(NULLIF($6, ''), stripe_customer_id),
        stripe_synced_at = now()
      WHERE id = $1 AND (stripe_subscription_id = '' OR stripe_subscription_id = $2 OR $5::boolean
        OR subscription_status NOT IN ('active', 'trialing', 'past_due'))`,
-    [restaurant.id, sub.id, sub.status, sub.current_period_end ? new Date(sub.current_period_end * 1000) : null, live]
+    [restaurant.id, sub.id, sub.status, sub.current_period_end ? new Date(sub.current_period_end * 1000) : null, live, sub.customer_id || '']
   );
 }
 

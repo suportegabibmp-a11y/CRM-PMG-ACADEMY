@@ -50,12 +50,26 @@ function json(status, body) {
   return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
-async function getPrice() {
-  const price = await stripe().prices.retrieve(priceId());
+function describePrice(price) {
   return { amount_cents: price.unit_amount, currency: price.currency, interval: price.recurring?.interval || 'month' };
 }
 
+// Preço do link de pagamento (quando informado) ou de STRIPE_PRICE_ID.
+async function getPrice(link) {
+  if (link) {
+    const links = await stripe().paymentLinks.list({ limit: 100 });
+    const found = links.data.find((l) => l.url === link);
+    if (found) {
+      const items = await stripe().paymentLinks.listLineItems(found.id, { limit: 1 });
+      if (items.data[0]?.price) return describePrice(items.data[0].price);
+    }
+  }
+  if (!priceId()) throw new HttpError(503, 'Preço da assinatura não configurado.');
+  return describePrice(await stripe().prices.retrieve(priceId()));
+}
+
 async function checkout({ token, success_url, cancel_url }) {
+  if (!priceId()) throw new HttpError(503, 'Preço da assinatura não configurado.');
   const info = await redeem(token, 'checkout');
   let customerId = info.customer_id;
   if (!customerId) {
@@ -87,10 +101,20 @@ async function portal({ token, return_url }) {
   return { url: session.url };
 }
 
-async function status({ token }) {
+async function status({ token, checkout_session_id }) {
   const info = await redeem(token, 'status');
-  if (!info.customer_id) return { subscription: null };
-  const { data } = await stripe().subscriptions.list({ customer: info.customer_id, status: 'all', limit: 10 });
+  let customerId = info.customer_id;
+  // Pagamento feito pelo link: a sessão diz qual cliente do Stripe é deste
+  // restaurante (client_reference_id foi colocado no link pelo servidor).
+  if (checkout_session_id) {
+    const session = await stripe().checkout.sessions.retrieve(checkout_session_id);
+    if (session.client_reference_id !== String(info.restaurant_id) || session.status !== 'complete') {
+      throw new HttpError(403, 'Sessão de pagamento não pertence a este restaurante.');
+    }
+    customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+  }
+  if (!customerId) return { subscription: null };
+  const { data } = await stripe().subscriptions.list({ customer: customerId, status: 'all', limit: 10 });
   const mine = data.filter((s) => !s.metadata?.restaurant_id || s.metadata.restaurant_id === String(info.restaurant_id));
   const best = mine.find((s) => LIVE_STATUSES.includes(s.status)) || mine[0];
   if (!best) return { subscription: null };
@@ -98,6 +122,7 @@ async function status({ token }) {
   return {
     subscription: {
       id: best.id,
+      customer_id: customerId,
       status: best.status,
       current_period_end: item?.current_period_end || best.current_period_end || null,
     },
@@ -119,6 +144,19 @@ async function webhook(event) {
   }
 
   const obj = evt.data.object;
+
+  // Pagou pelo link: marca cliente e assinatura com o restaurante (para os
+  // próximos eventos) e pede ao servidor para ativar, informando a sessão.
+  if (evt.type === 'checkout.session.completed' && obj.mode === 'subscription' && obj.client_reference_id) {
+    const restaurantId = obj.client_reference_id;
+    const customerId = typeof obj.customer === 'string' ? obj.customer : obj.customer?.id;
+    const subId = typeof obj.subscription === 'string' ? obj.subscription : obj.subscription?.id;
+    if (customerId) await stripe().customers.update(customerId, { metadata: { restaurant_id: restaurantId } });
+    if (subId) await stripe().subscriptions.update(subId, { metadata: { restaurant_id: restaurantId } });
+    await edge('/internal/stripe-sync', { restaurant_id: Number(restaurantId), checkout_session_id: obj.id });
+    return { received: true };
+  }
+
   let restaurantId = obj.client_reference_id || obj.metadata?.restaurant_id;
   if (!restaurantId) {
     const subId = obj.subscription || obj.parent?.subscription_details?.subscription;
@@ -137,8 +175,11 @@ export async function handler(event) {
   const path = event.path || '';
   const route = path.includes('/webhooks/stripe') ? 'webhook' : path.split('/').filter(Boolean).pop();
   try {
-    if (!process.env.STRIPE_SECRET_KEY || !priceId()) throw new HttpError(503, 'Stripe não configurado.');
-    if (route === 'price' && event.httpMethod === 'GET') return json(200, await getPrice());
+    if (!process.env.STRIPE_SECRET_KEY) throw new HttpError(503, 'Stripe não configurado.');
+    if (route === 'price' && event.httpMethod === 'GET') {
+      const link = event.queryStringParameters?.link || '';
+      return json(200, await getPrice(/^https:\/\/buy\.stripe\.com\//.test(link) ? link : ''));
+    }
     if (event.httpMethod !== 'POST') throw new HttpError(405, 'Método não permitido.');
     if (route === 'webhook') return json(200, await webhook(event));
 

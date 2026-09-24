@@ -1,104 +1,15 @@
-// Testa o caminho completo da assinatura: servidor (como no Supabase) ⇄
-// função do Stripe (como na Netlify) ⇄ Stripe (cliente falso). A validação
-// de assinatura do webhook usa o SDK real do Stripe.
+// Assinatura pelo checkout do Stripe (sem link de pagamento configurado).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import http from 'node:http';
-import process from 'node:process';
-import Stripe from 'stripe';
+import { startHarness } from './stripe-harness.js';
 
-// Servidor que imita a Netlify chamando a função do Stripe.
-let stripeHandler;
-const netlify = http.createServer(async (req, res) => {
-  const chunks = [];
-  for await (const c of req) chunks.push(c);
-  const out = await stripeHandler({
-    httpMethod: req.method,
-    path: new URL(req.url, 'http://x').pathname,
-    headers: req.headers,
-    body: Buffer.concat(chunks).toString('utf8'),
-    isBase64Encoded: false,
-  });
-  res.writeHead(out.statusCode, out.headers).end(out.body);
-});
-await new Promise((r) => netlify.listen(0, r));
-const netlifyUrl = `http://127.0.0.1:${netlify.address().port}`;
+// Sem link de pagamento: o sistema cria a sessão de checkout pelo preço.
+const h = await startHarness({ STRIPE_PAYMENT_LINK: '' });
+const { db, netlifyUrl, client, sendWebhook, setSubscription } = h;
+const { sessions, subsByCustomer } = h.stripeState;
+test.after(() => h.close());
 
-Object.assign(process.env, {
-  DB_PATH: ':memory:',
-  STRIPE_SERVICE_URL: `${netlifyUrl}/.netlify/functions/stripe`,
-  STRIPE_SECRET_KEY: 'sk_test_fake',
-  STRIPE_WEBHOOK_SECRET: 'whsec_test',
-  STRIPE_PRICE_ID: 'price_mensal',
-});
-const { default: app } = await import('../server/index.js');
-const { db } = await import('../server/db.js');
-
-const server = app.listen(0);
-await new Promise((r) => server.once('listening', r));
-const base = `http://127.0.0.1:${server.address().port}`;
-process.env.EDGE_API_URL = `${base}/api`;
-const stripeFn = await import('../netlify/functions/stripe.js');
-stripeHandler = stripeFn.handler;
-
-// Stripe falso: guarda clientes, sessões e assinaturas em memória.
-const realWebhooks = new Stripe('sk_test_fake').webhooks;
-const subsByCustomer = {};
-const sessions = [];
-let customerSeq = 0;
-stripeFn.setClient({
-  webhooks: realWebhooks,
-  prices: { retrieve: async (id) => ({ id, unit_amount: 4990, currency: 'brl', recurring: { interval: 'month' } }) },
-  customers: {
-    create: async (p) => ({ id: `cus_${++customerSeq}`, metadata: p.metadata }),
-    retrieve: async (id) => ({ id, metadata: {} }),
-  },
-  checkout: { sessions: { create: async (p) => { sessions.push(p); return { url: `https://checkout.stripe.test/${sessions.length}` }; } } },
-  billingPortal: { sessions: { create: async (p) => ({ url: `https://billing.stripe.test/${p.customer}` }) } },
-  subscriptions: {
-    list: async ({ customer }) => ({ data: subsByCustomer[customer] || [] }),
-    retrieve: async (id) => Object.values(subsByCustomer).flat().find((s) => s.id === id),
-  },
-});
-
-test.after(() => { server.close(); netlify.close(); });
-
-function client() {
-  let token = '';
-  return async (path, { method = 'GET', body } = {}) => {
-    const res = await fetch(base + path, {
-      method,
-      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const data = await res.json().catch(() => null);
-    if (data?.token) token = data.token;
-    return { status: res.status, body: data };
-  };
-}
-
-async function sendWebhook(type, object, { secret = 'whsec_test' } = {}) {
-  const payload = JSON.stringify({ id: `evt_${Math.random()}`, object: 'event', type, data: { object } });
-  const header = realWebhooks.generateTestHeaderString({ payload, secret });
-  const res = await fetch(`${netlifyUrl}/api/webhooks/stripe`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Stripe-Signature': header },
-    body: payload,
-  });
-  return res.status;
-}
-
-function setSubscription(customer, restaurantId, status, id = 'sub_1') {
-  const sub = {
-    id, object: 'subscription', status, customer,
-    metadata: { restaurant_id: String(restaurantId) },
-    items: { data: [{ price: { id: 'price_mensal' }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400 }] },
-  };
-  subsByCustomer[customer] = [sub, ...(subsByCustomer[customer] || []).filter((s) => s.id !== id)];
-  return sub;
-}
-
-test('assinatura: link do Stripe, ativação, portal, cancelamento e bloqueio', async () => {
+test('assinatura por checkout: ativação, portal, cancelamento e bloqueio', async () => {
   const c = client();
   await c('/api/auth/signup', { method: 'POST', body: { name: 'Dono', email: 'bill@test.com', password: 'senha-segura', restaurantName: 'Loja Stripe' } });
   const me = (await c('/api/auth/me')).body.restaurant;
