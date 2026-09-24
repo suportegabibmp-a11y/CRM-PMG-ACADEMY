@@ -6,6 +6,10 @@
 [build]
   command = "npm install"
   publish = "public"
+  # Só faz build quando algo publicado na Netlify muda (páginas, função do
+  # Stripe, configuração ou dependências). Mudanças só no servidor (Supabase)
+  # ou na documentação não gastam créditos de build.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- public netlify netlify.toml package.json package-lock.json"
 
 [functions]
   directory = "netlify/functions"

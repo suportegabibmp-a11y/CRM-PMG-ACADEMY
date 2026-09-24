@@ -38,7 +38,7 @@ npm start         # http://localhost:3000
 ```
 
 - Landing page e cadastro: `http://localhost:3000`
-- Demonstração: `http://localhost:3000/m/burger-house`. Painel: login `demo@cardapio.app` / senha `demo12345`
+- Demonstração: `http://localhost:3000/m/burger-house`. Painel: login `demo@cardapio.app` / senha `demo12345` (conta somente leitura)
 - Testes: `npm test`
 
 ## Como está publicado (Netlify + Supabase)
@@ -65,7 +65,8 @@ navegador ──► Netlify (cardapiodigitalpmg.netlify.app)
 | `STRIPE_WEBHOOK_SECRET` | Netlify | Segredo do webhook do Stripe (`whsec_…`) |
 | `STRIPE_PRICE_ID` | Netlify | ID do preço mensal da assinatura (`price_…`) |
 | `SUPERADMIN_EMAILS` | Supabase (opcional) | Alternativa à tabela `cardapio.settings` |
-| `ALLOW_DEMO_PAYMENTS` | Supabase (opcional) | `true` libera o pagamento simulado (só para testes) |
+| `ALLOW_DEMO_PAYMENTS` | Supabase (opcional) | `true` libera o pagamento simulado. **Nunca em produção**: sem ela, o servidor publicado não oferece pagamento simulado |
+| `DATA_ENCRYPTION_KEY` | Supabase (opcional) | Chave para cifrar os tokens do Mercado Pago. Sem ela, é derivada da `SUPABASE_SERVICE_ROLE_KEY` |
 | `APP_TIMEZONE` | Supabase (opcional) | Fuso dos relatórios (padrão `America/Sao_Paulo`) |
 | `DATABASE_URL`, `PORT`, `DB_PATH` | local | Só para rodar fora do Supabase; sem `DATABASE_URL` usa PGlite |
 
@@ -100,6 +101,10 @@ Como a confirmação funciona:
 - Os preços são sempre **recalculados no servidor**. O cliente não consegue alterar valores
 
 Sem token configurado, localmente o sistema usa o **modo demonstração** (PIX fictício + botão "Simular pagamento aprovado"). Em produção, sem token, só aparece o pagamento na entrega.
+
+## Segurança
+
+Auditoria completa, achados, correções, testes e pendências em [SEGURANCA.md](SEGURANCA.md).
 
 ## Estrutura
 
