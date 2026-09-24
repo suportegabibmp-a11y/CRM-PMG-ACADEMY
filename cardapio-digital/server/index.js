@@ -99,13 +99,8 @@ function subscriptionActive(r) {
   return billing.ACTIVE_STATUSES.includes(r.subscription_status);
 }
 
-// Pagamento online e relatórios fazem parte do plano Pro (e do teste grátis).
-function hasProFeatures(r) {
-  return r.plan === 'pro' || r.plan === 'trial';
-}
-
 function paymentOptions(r) {
-  const online = hasProFeatures(r) ? payments.providerFor(r) : null;
+  const online = payments.providerFor(r);
   return {
     pix: Boolean(r.accept_pix && online),
     card_online: Boolean(r.accept_card_online && online),
@@ -120,7 +115,6 @@ function adminRestaurant(r) {
     ...rest,
     has_mp_token: Boolean(mp_access_token),
     has_subscription: Boolean(stripe_subscription_id),
-    pro_features: hasProFeatures(r),
     subscription_active: subscriptionActive(r),
     payment_options: paymentOptions(r),
   };
@@ -374,7 +368,6 @@ admin.patch('/orders/:id', async (req, res) => {
 });
 
 admin.get('/stats', async (req, res) => {
-  if (!hasProFeatures(req.restaurant)) throw new HttpError(403, 'Relatórios fazem parte do plano Pro.');
   const rid = req.restaurant.id;
   const valid = `restaurant_id = $1 AND status NOT IN ('canceled', 'awaiting_payment')`;
   const totals = `COUNT(*)::int AS orders, COALESCE(SUM(total_cents), 0)::int AS revenue_cents`;
@@ -404,15 +397,15 @@ admin.get('/stats', async (req, res) => {
 
 admin.get('/billing', async (req, res) => {
   const r = req.restaurant;
-  let plans = [];
+  let price = null;
   try {
-    plans = await billing.listPlans();
+    price = await billing.getPrice();
   } catch (err) {
-    console.error('Stripe (planos):', err.message);
+    console.error('Stripe (preço):', err.message);
   }
   res.json({
-    enabled: billing.enabled() && plans.length > 0,
-    plans,
+    enabled: Boolean(price),
+    price,
     plan: r.plan,
     trial_ends_at: r.trial_ends_at,
     subscription_status: r.subscription_status,
@@ -426,10 +419,8 @@ admin.get('/billing', async (req, res) => {
 admin.post('/billing/checkout', async (req, res) => {
   if (!billing.enabled()) throw new HttpError(503, 'Assinaturas ainda não estão configuradas.');
   if (req.restaurant.plan === 'suspended') throw new HttpError(403, 'Conta suspensa. Fale com o suporte.');
-  const plan = req.body.plan === 'pro' ? 'pro' : req.body.plan === 'basic' ? 'basic' : null;
-  if (!plan) throw new HttpError(400, 'Plano inválido.');
   try {
-    res.json({ url: await billing.createCheckout({ restaurant: req.restaurant, user: req.user, plan, baseUrl: baseUrl(req) }) });
+    res.json({ url: await billing.createCheckout({ restaurant: req.restaurant, user: req.user, baseUrl: baseUrl(req) }) });
   } catch (err) {
     if (err.status) throw new HttpError(err.status, err.message);
     console.error('Stripe (checkout):', err.message);
@@ -468,7 +459,7 @@ superadmin.get('/restaurants', async (req, res) => {
 });
 
 superadmin.patch('/restaurants/:id', async (req, res) => {
-  const plan = ['trial', 'basic', 'pro', 'suspended'].includes(req.body.plan) ? req.body.plan : null;
+  const plan = ['trial', 'paid', 'suspended'].includes(req.body.plan) ? req.body.plan : null;
   if (!plan) throw new HttpError(400, 'Plano inválido.');
   const extraDays = Number.isInteger(req.body.extend_trial_days) ? Math.max(0, Math.min(365, req.body.extend_trial_days)) : 0;
   await db.query(

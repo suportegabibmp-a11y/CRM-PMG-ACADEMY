@@ -23,8 +23,8 @@ SaaS multi-restaurante: cada estabelecimento (restaurante, hamburgueria, pizzari
 
 **Para você (dono do SaaS)**
 - Teste grátis de 14 dias por conta. Com o teste vencido, o cardápio para de aceitar pedidos
-- **Mensalidade cobrada pelo Stripe** (planos Básico e Pro), com cobrança recorrente automática e bloqueio automático quando a assinatura é cancelada ou fica sem pagamento. Veja a seção "Assinaturas (Stripe)"
-- Aba "Clientes do SaaS" (para e-mails em `SUPERADMIN_EMAILS`): lista de restaurantes, mudança de plano (`trial`, `basic`, `pro`, `suspended`) e extensão do teste
+- **Mensalidade cobrada pelo Stripe** (plano único de R$ 49,90/mês), com cobrança recorrente automática e bloqueio automático quando a assinatura é cancelada ou fica sem pagamento. Veja a seção "Assinaturas (Stripe)"
+- Aba "Clientes do SaaS" (para e-mails em `SUPERADMIN_EMAILS`): lista de restaurantes, mudança de plano (`trial`, `paid`, `suspended`) e extensão do teste
 
 ## Como rodar localmente
 
@@ -75,32 +75,25 @@ As páginas são servidas como arquivos estáticos, a API roda como Netlify Func
 | `ALLOW_DEMO_PAYMENTS` | `true` libera o pagamento simulado em produção (só para testes) |
 | `STRIPE_SECRET_KEY` | Chave secreta do Stripe (`sk_live_…` ou `sk_test_…`) |
 | `STRIPE_WEBHOOK_SECRET` | Segredo do webhook do Stripe (`whsec_…`) |
-| `STRIPE_PRICE_BASIC` | ID do preço mensal do plano Básico (`price_…`) |
-| `STRIPE_PRICE_PRO` | ID do preço mensal do plano Pro (`price_…`) |
+| `STRIPE_PRICE_ID` | ID do preço mensal da assinatura (`price_…`) |
 | `APP_TIMEZONE` | Fuso dos relatórios (padrão `America/Sao_Paulo`) |
 | `PORT`, `DB_PATH` | Só para rodar localmente |
 
 ## Assinaturas (Stripe)
 
-Os restaurantes pagam a mensalidade do SaaS para você pelo Stripe. O painel tem a aba **Assinatura**, com os planos e o botão "Gerenciar assinatura", que abre o Portal do Cliente do Stripe (trocar cartão, trocar de plano, ver faturas, cancelar).
+Os restaurantes pagam a mensalidade do SaaS para você pelo Stripe: **um plano único de R$ 49,90/mês com tudo incluído**. O painel tem a aba **Assinatura**, com o botão "Assinar agora" e o "Gerenciar assinatura", que abre o Portal do Cliente do Stripe (trocar cartão, ver faturas, cancelar).
 
-| Plano | Inclui |
-|---|---|
-| Teste grátis (14 dias) | Tudo do Pro |
-| Básico | Cardápio, pedidos, pagamento na entrega, QR Codes |
-| Pro | Tudo do Básico + PIX e cartão online + relatórios |
-
-O cardápio para de aceitar pedidos quando o teste acaba sem assinatura, ou quando a assinatura fica `canceled`, `unpaid` ou `incomplete_expired`. Com pagamento atrasado (`past_due`), o acesso continua enquanto o Stripe tenta cobrar de novo, e o painel pede para atualizar o cartão. Planos liberados manualmente pelo superadmin, sem assinatura no Stripe, continuam funcionando.
+O cardápio para de aceitar pedidos quando o teste de 14 dias acaba sem assinatura, ou quando a assinatura fica `canceled`, `unpaid` ou `incomplete_expired`. Com pagamento atrasado (`past_due`), o acesso continua enquanto o Stripe tenta cobrar de novo, e o painel pede para atualizar o cartão. Contas liberadas manualmente pelo superadmin (plano `paid` sem assinatura no Stripe) continuam funcionando.
 
 **Configuração no Stripe** (https://dashboard.stripe.com). Faça primeiro em modo de teste:
-1. **Product catalog → Add product**: crie "Plano Básico" com preço recorrente mensal de R$ 49,00 e "Plano Pro" com R$ 89,00. Copie o ID de cada preço (`price_…`) para `STRIPE_PRICE_BASIC` e `STRIPE_PRICE_PRO`
+1. **Product catalog → Add product**: crie o produto "Cardápio Digital" com preço recorrente mensal de R$ 49,90. Copie o ID do preço (`price_…`) para `STRIPE_PRICE_ID`
 2. **Developers → API keys**: copie a Secret key para `STRIPE_SECRET_KEY`
 3. **Developers → Webhooks → Add destination**:
    - URL: `https://SEU-SITE.netlify.app/api/webhooks/stripe`
    - Eventos: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `invoice.paid`, `invoice.payment_failed`
    - Copie o Signing secret (`whsec_…`) para `STRIPE_WEBHOOK_SECRET`
-4. **Settings → Billing → Customer portal**: ative o portal e permita atualizar forma de pagamento, trocar de plano (adicione os dois produtos) e cancelar
-5. Coloque as 4 variáveis na Netlify e faça um novo deploy
+4. **Settings → Billing → Customer portal**: ative o portal e permita atualizar forma de pagamento e cancelar
+5. Coloque as 3 variáveis (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`) na Netlify e faça um novo deploy
 
 Para testar, use o cartão `4242 4242 4242 4242`, qualquer data futura e qualquer CVC.
 

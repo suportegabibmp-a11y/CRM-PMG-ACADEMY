@@ -2,8 +2,7 @@ process.env.DB_PATH = ':memory:';
 process.env.ALLOW_DEMO_PAYMENTS = 'true';
 process.env.STRIPE_SECRET_KEY = 'sk_test_fake';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
-process.env.STRIPE_PRICE_BASIC = 'price_basic';
-process.env.STRIPE_PRICE_PRO = 'price_pro';
+process.env.STRIPE_PRICE_ID = 'price_mensal';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -19,7 +18,7 @@ const calls = [];
 billing.setClient({
   webhooks: realWebhooks,
   prices: {
-    retrieve: async (id) => ({ id, unit_amount: id === 'price_pro' ? 8900 : 4900, currency: 'brl', recurring: { interval: 'month' } }),
+    retrieve: async (id) => ({ id, unit_amount: 4990, currency: 'brl', recurring: { interval: 'month' } }),
   },
   customers: { create: async (p) => { calls.push(['customer', p]); return { id: 'cus_1' }; } },
   checkout: { sessions: { create: async (p) => { calls.push(['checkout', p]); return { url: 'https://checkout.stripe.test/s1' }; } } },
@@ -61,11 +60,11 @@ async function sendWebhook(type, object, { secret = 'whsec_test' } = {}) {
   return res.status;
 }
 
-function subscription(id, { status = 'active', price = 'price_pro', restaurantId }) {
+function subscription(id, { status = 'active', restaurantId }) {
   return {
     id, object: 'subscription', status, customer: 'cus_1',
     metadata: { restaurant_id: String(restaurantId) },
-    items: { data: [{ price: { id: price }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400 }] },
+    items: { data: [{ price: { id: 'price_mensal' }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400 }] },
   };
 }
 
@@ -76,14 +75,14 @@ test('assinatura: checkout, ativação por webhook, cancelamento e bloqueio', as
 
   const info = await c('/api/admin/billing');
   assert.equal(info.body.enabled, true);
-  assert.deepEqual(info.body.plans.map((p) => [p.id, p.amount_cents]), [['basic', 4900], ['pro', 8900]]);
+  assert.equal(info.body.price.amount_cents, 4990);
 
-  const checkout = await c('/api/admin/billing/checkout', { method: 'POST', body: { plan: 'pro' } });
+  const checkout = await c('/api/admin/billing/checkout', { method: 'POST' });
   assert.equal(checkout.status, 200);
   assert.equal(checkout.body.url, 'https://checkout.stripe.test/s1');
   const session = calls.find(([k]) => k === 'checkout')[1];
   assert.equal(session.mode, 'subscription');
-  assert.equal(session.line_items[0].price, 'price_pro');
+  assert.equal(session.line_items[0].price, 'price_mensal');
   assert.equal(session.client_reference_id, String(me.id));
 
   // Webhook com assinatura inválida é recusado.
@@ -95,26 +94,19 @@ test('assinatura: checkout, ativação por webhook, cancelamento e bloqueio', as
   }), 200);
 
   let r = (await c('/api/auth/me')).body.restaurant;
-  assert.equal(r.plan, 'pro');
+  assert.equal(r.plan, 'paid');
   assert.equal(r.subscription_status, 'active');
   assert.equal(r.subscription_active, true);
+  assert.equal(r.payment_options.pix, true);
+  assert.equal((await c('/api/admin/stats')).status, 200);
   assert.equal(r.stripe_customer_id, undefined, 'IDs do Stripe não vão para o navegador');
 
   // Com assinatura ativa, não abre outro checkout; o portal funciona.
-  assert.equal((await c('/api/admin/billing/checkout', { method: 'POST', body: { plan: 'basic' } })).status, 409);
+  assert.equal((await c('/api/admin/billing/checkout', { method: 'POST' })).status, 409);
   assert.equal((await c('/api/admin/billing/portal', { method: 'POST' })).body.url, 'https://billing.stripe.test/p1');
 
-  // Troca para o Básico pelo portal: perde recursos Pro.
-  subs.sub_1 = subscription('sub_1', { restaurantId: me.id, price: 'price_basic' });
-  await sendWebhook('customer.subscription.updated', subs.sub_1);
-  r = (await c('/api/auth/me')).body.restaurant;
-  assert.equal(r.plan, 'basic');
-  assert.equal(r.pro_features, false);
-  assert.equal(r.payment_options.pix, false);
-  assert.equal((await c('/api/admin/stats')).status, 403);
-
   // Cancelamento: o cardápio para de aceitar pedidos.
-  subs.sub_1 = subscription('sub_1', { restaurantId: me.id, price: 'price_basic', status: 'canceled' });
+  subs.sub_1 = subscription('sub_1', { restaurantId: me.id, status: 'canceled' });
   await sendWebhook('customer.subscription.deleted', subs.sub_1);
   r = (await c('/api/auth/me')).body.restaurant;
   assert.equal(r.subscription_active, false);
@@ -126,7 +118,7 @@ test('assinatura: checkout, ativação por webhook, cancelamento e bloqueio', as
   await sendWebhook('customer.subscription.created', subs.sub_2);
   await sendWebhook('customer.subscription.deleted', subs.sub_1);
   r = (await c('/api/auth/me')).body.restaurant;
-  assert.equal(r.plan, 'pro');
+  assert.equal(r.plan, 'paid');
   assert.equal(r.subscription_status, 'active');
   assert.equal(r.subscription_active, true);
 });

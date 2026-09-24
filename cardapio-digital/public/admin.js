@@ -51,15 +51,15 @@ function refreshChrome() {
     banners.push('<div class="banner danger">Sua conta está suspensa. Entre em contato com o suporte.</div>');
   } else if (!restaurant.subscription_active) {
     banners.push(restaurant.plan === 'trial'
-      ? '<div class="banner danger">Seu período de teste terminou e o cardápio não está recebendo pedidos. <a href="#billing" data-go-billing>Assine um plano</a> para continuar.</div>'
+      ? '<div class="banner danger">Seu período de teste terminou e o cardápio não está recebendo pedidos. <a href="#billing" data-go-billing>Assine agora</a> para continuar.</div>'
       : '<div class="banner danger">Sua assinatura não está ativa e o cardápio não está recebendo pedidos. <a href="#billing" data-go-billing>Regularize a assinatura</a>.</div>');
   } else if (restaurant.subscription_status === 'past_due') {
     banners.push('<div class="banner danger">Não conseguimos cobrar sua assinatura. <a href="#billing" data-go-billing>Atualize seu cartão</a> para não perder o acesso.</div>');
   } else if (restaurant.plan === 'trial') {
     const days = Math.ceil((new Date(restaurant.trial_ends_at) - Date.now()) / 864e5);
-    banners.push(`<div class="banner">Teste grátis: ${days} dia(s) restante(s). <a href="#billing" data-go-billing>Ver planos</a></div>`);
+    banners.push(`<div class="banner">Teste grátis: ${days} dia(s) restante(s). <a href="#billing" data-go-billing>Assinar</a></div>`);
   }
-  if (restaurant.payment_options.demo && restaurant.pro_features) {
+  if (restaurant.payment_options.demo) {
     banners.push('<div class="banner">Pagamentos online em modo demonstração. Configure seu Access Token do Mercado Pago em Configurações para receber de verdade.</div>');
   }
   document.getElementById('banners').innerHTML = banners.join('');
@@ -420,18 +420,7 @@ function productForm(p = null) {
 
 // ================= RELATÓRIOS =================
 
-function proUpsell(feature) {
-  return `<div class="card"><h2>${feature} fazem parte do plano Pro</h2>
-    <p class="muted">Faça upgrade para liberar pagamento online por PIX e cartão e os relatórios de vendas.</p>
-    <button class="btn primary" data-go-billing>Ver planos</button></div>`;
-}
-
 async function renderReports() {
-  if (!restaurant.pro_features) {
-    document.getElementById('view').innerHTML = proUpsell('Relatórios');
-    document.querySelector('#view [data-go-billing]').addEventListener('click', () => go('billing'));
-    return;
-  }
   const s = await api('/api/admin/stats');
   const days = [];
   for (let i = 13; i >= 0; i--) {
@@ -563,7 +552,6 @@ function renderSettings() {
 
       <div class="card">
         <h2>Pagamentos</h2>
-        ${r.pro_features ? '' : '<p class="banner">PIX e cartão online fazem parte do plano Pro. No plano Básico, o cardápio aceita pagamento na entrega.</p>'}
         ${chk('accept_pix', 'PIX online (confirmação automática)')}
         ${chk('accept_card_online', 'Cartão de crédito/débito online')}
         ${chk('accept_on_delivery', 'Pagamento na entrega / no local (dinheiro ou maquininha)')}
@@ -604,10 +592,14 @@ function renderSettings() {
 
 // ================= ASSINATURA (STRIPE) =================
 
-const PLAN_FEATURES = {
-  basic: ['Cardápio e pedidos ilimitados', 'Pagamento na entrega', 'QR Code para mesas', 'Painel de pedidos em tempo real'],
-  pro: ['Tudo do Básico', 'PIX e cartão online (Mercado Pago)', 'Relatórios de vendas', 'Suporte prioritário'],
-};
+const PLAN_FEATURES = [
+  'Cardápio e pedidos ilimitados',
+  'PIX e cartão online (Mercado Pago)',
+  'Pagamento na entrega e pedidos na mesa',
+  'Painel de pedidos em tempo real',
+  'Relatórios de vendas',
+  'Link e QR Codes para divulgar',
+];
 const SUB_STATUS = {
   active: ['Ativa', 'ok'], trialing: ['Em teste', 'ok'], past_due: ['Pagamento atrasado', 'warn'],
   unpaid: ['Não paga', 'danger'], canceled: ['Cancelada', 'danger'], incomplete: ['Pagamento pendente', 'warn'],
@@ -619,37 +611,36 @@ async function renderBilling() {
   // Atualiza o plano exibido no restante do painel (o webhook pode ter mudado).
   api('/api/auth/me').then((d) => { restaurant = d.restaurant; refreshChrome(); }).catch(() => {});
 
-  const planLabel = { trial: 'Teste grátis', basic: 'Básico', pro: 'Pro', suspended: 'Suspenso' }[b.plan] || b.plan;
+  const planLabel = b.plan === 'trial' ? 'Teste grátis' : b.plan === 'suspended' ? 'Suspenso' : 'Assinante';
   const [statusText, statusClass] = b.subscription_status ? (SUB_STATUS[b.subscription_status] || [b.subscription_status, '']) : [b.active ? 'Ativo' : 'Inativo', b.active ? 'ok' : 'danger'];
-  const price = (p) => (p.amount_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: p.currency.toUpperCase() });
-  const per = (p) => ({ month: 'mês', year: 'ano' }[p.interval] || p.interval);
+  const priceText = b.price
+    ? (b.price.amount_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: b.price.currency.toUpperCase() })
+    : '';
+  const per = b.price ? ({ month: 'mês', year: 'ano' }[b.price.interval] || b.price.interval) : '';
 
   let summary = '';
   if (b.plan === 'trial') {
     summary = b.active ? `Seu teste grátis vai até <strong>${formatDateTime(b.trial_ends_at).split(',')[0]}</strong>. Assine para continuar sem interrupção.`
-      : 'Seu teste grátis terminou. Assine um plano para voltar a receber pedidos.';
+      : 'Seu teste grátis terminou. Assine para voltar a receber pedidos.';
   } else if (b.has_subscription && b.current_period_end) {
     summary = `Próxima cobrança em <strong>${formatDateTime(b.current_period_end).split(',')[0]}</strong>.`;
+  } else if (!b.active) {
+    summary = 'Sua assinatura não está ativa. Assine novamente para voltar a receber pedidos.';
   }
 
   document.getElementById('view').innerHTML = `
-    <div class="settings" style="max-width:900px">
+    <div class="settings" style="max-width:620px">
       <div class="card">
-        <div class="row wrap"><h2 class="spacer" style="margin:0">Plano atual: ${esc(planLabel)}</h2><span class="badge ${statusClass}">${esc(statusText)}</span></div>
+        <div class="row wrap"><h2 class="spacer" style="margin:0">Situação: ${esc(planLabel)}</h2><span class="badge ${statusClass}">${esc(statusText)}</span></div>
         ${summary ? `<p class="muted">${summary}</p>` : ''}
         ${b.can_manage && b.enabled ? '<button class="btn" id="portal">Gerenciar assinatura (cartão, faturas, cancelamento)</button>' : ''}
       </div>
-      ${!b.enabled ? '<div class="card"><p class="muted">As assinaturas online ainda não estão disponíveis. Fale com o suporte para ativar seu plano.</p></div>' : `
-      <div class="plans">
-        ${b.plans.map((p) => `
-          <div class="card plan-card ${b.has_subscription && b.plan === p.id ? 'current' : ''}">
-            <h3>${esc(p.name)}</h3>
-            <div class="price">${price(p)}<span class="small muted">/${per(p)}</span></div>
-            <ul>${PLAN_FEATURES[p.id].map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
-            ${b.has_subscription
-              ? (b.plan === p.id ? '<span class="badge ok">Seu plano</span>' : '<button class="btn block" data-portal>Trocar para este plano</button>')
-              : `<button class="btn ${p.id === 'pro' ? 'primary' : ''} block" data-plan="${p.id}">Assinar ${esc(p.name)}</button>`}
-          </div>`).join('')}
+      ${!b.enabled ? '<div class="card"><p class="muted">As assinaturas online ainda não estão disponíveis. Fale com o suporte para ativar sua conta.</p></div>' : `
+      <div class="card plan-card ${b.has_subscription ? 'current' : ''}">
+        <h3>Cardápio Digital</h3>
+        <div class="price">${priceText}<span class="small muted">/${per}</span></div>
+        <ul>${PLAN_FEATURES.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+        ${b.has_subscription ? '<span class="badge ok">Assinatura ativa</span>' : '<button class="btn primary block lg" id="subscribe">Assinar agora</button>'}
       </div>
       <p class="small muted">Pagamento seguro processado pelo Stripe. Cancele quando quiser pelo "Gerenciar assinatura".</p>`}
     </div>`;
@@ -660,12 +651,12 @@ async function renderBilling() {
     catch (err) { toast(err.message, 'error'); btn.disabled = false; }
   };
   document.getElementById('portal')?.addEventListener('click', (e) => openPortal(e.target));
-  document.querySelectorAll('[data-portal]').forEach((btn) => btn.addEventListener('click', () => openPortal(btn)));
-  document.querySelectorAll('[data-plan]').forEach((btn) => btn.addEventListener('click', async () => {
+  document.getElementById('subscribe')?.addEventListener('click', async (e) => {
+    const btn = e.target;
     btn.disabled = true;
-    try { location.href = (await api('/api/admin/billing/checkout', { method: 'POST', body: { plan: btn.dataset.plan } })).url; }
+    try { location.href = (await api('/api/admin/billing/checkout', { method: 'POST' })).url; }
     catch (err) { toast(err.message, 'error'); btn.disabled = false; }
-  }));
+  });
 }
 
 // ================= SUPERADMIN =================
@@ -678,7 +669,7 @@ async function renderSuperadmin() {
       <tbody>${list.map((r) => `<tr data-rid="${r.id}">
         <td><a href="/m/${esc(r.slug)}" target="_blank" rel="noopener">${esc(r.name)}</a></td>
         <td>${esc(r.owner_email)}</td><td>${formatDateTime(r.created_at)}</td><td>${r.total_orders}</td>
-        <td><select data-plan>${['trial', 'basic', 'pro', 'suspended'].map((p) => `<option ${p === r.plan ? 'selected' : ''}>${p}</option>`).join('')}</select></td>
+        <td><select data-plan>${['trial', 'paid', 'suspended'].map((p) => `<option ${p === r.plan ? 'selected' : ''}>${p}</option>`).join('')}</select></td>
         <td>${esc(r.subscription_status || '—')}</td>
         <td>${formatDateTime(r.trial_ends_at)}</td>
         <td class="row"><button class="btn sm" data-save>Salvar</button><button class="btn sm" data-extend>+14 dias</button></td>
